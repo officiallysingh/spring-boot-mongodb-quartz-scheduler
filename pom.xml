@@ -11,27 +11,56 @@
 
     <name>spring-boot-mongodb-quartz-scheduler</name>
     <description>Quartz Job Scheduler with Spring Boot autoconfiguration and MongoDB support</description>
-    <url>https://github.com/officiallysingh/quartz</url>
+    <url>https://github.com/officiallysingh/spring-boot-mongodb-quartz-scheduler.git</url>
+
+    <organization>
+        <name>Ksoot Technologies</name>
+    </organization>
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <name>Rajveer Singh</name>
+            <email>raj14.1984@gmail.com</email>
+            <organization>Ksoot Technologies</organization>
+            <organizationUrl>http://www.ksoot.com</organizationUrl>
+        </developer>
+    </developers>
 
     <properties>
         <java.version>21</java.version>
         <spring-boot.version>4.1.1</spring-boot.version>
-
         <micrometer.version>1.17.1</micrometer.version>
 
         <slf4j.version>2.0.17</slf4j.version>
         <mongodb.driver.version>5.8.1</mongodb.driver.version>
-        <junit.version>6.1.3</junit.version>
-        <mockito.version>5.23.0</mockito.version>
+        <junit.version>6.1.4</junit.version>
+        <mockito.version>5.24.0</mockito.version>
         <testcontainers.version>1.21.4</testcontainers.version>
         <hamcrest.version>3.0</hamcrest.version>
         <logback.version>1.6.3</logback.version>
         <lombok.version>1.18.46</lombok.version>
 
-        <fmt-maven-plugin.version>2.29</fmt-maven-plugin.version>
+        <scm.connection>scm:git:git@github.com:officiallysingh/spring-boot-mongodb-quartz-scheduler.git</scm.connection>
         <maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
         <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
         <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
+        <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
+        <nexus-staging-maven-plugin.version>1.7.0</nexus-staging-maven-plugin.version>
+        <maven-release-plugin.version>3.1.1</maven-release-plugin.version>
+        <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
+
+        <fmt-maven-plugin.version>2.29</fmt-maven-plugin.version>
+        <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+        <central-publishing-maven-plugin.version>0.10.0</central-publishing-maven-plugin.version>
+
+        <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
+        <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -154,14 +183,14 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <version>${spring-boot.version}</version>
             <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.quartz-scheduler</groupId>
-                    <artifactId>quartz</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
     </dependencies>
+
+    <scm>
+        <url>https://github.com/officiallysingh/spring-boot-mongodb-quartz-scheduler/tree/main</url>
+        <connection>${scm.connection}</connection>
+        <developerConnection>${scm.connection}</developerConnection>
+    </scm>
 
     <build>
         <plugins>
@@ -184,7 +213,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.0</version>
+                <version>${maven-compiler-plugin.version}</version>
                 <configuration>
                     <annotationProcessorPaths>
                         <path>
@@ -212,7 +241,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.2</version>
+                <version>${maven-jar-plugin.version}</version>
                 <configuration>
                     <archive>
                         <manifestEntries>
@@ -247,4 +276,98 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>publish-artefacts</id>
+            <properties>
+                <http.socket.timeout>600000</http.socket.timeout>
+                <http.connection.timeout>600000</http.connection.timeout>
+            </properties>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+
+            <distributionManagement>
+                <snapshotRepository>
+                    <id>ossrh</id>
+                    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+                </snapshotRepository>
+                <repository>
+                    <id>ossrh</id>
+                    <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+                </repository>
+            </distributionManagement>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-release-plugin</artifactId>
+                        <version>${maven-release-plugin.version}</version>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <version>${maven-deploy-plugin.version}</version>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>${maven-source-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>${maven-javadoc-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <source>${maven.compiler.source}</source>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central-publishing-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                            <waitForPublishCompletion>true</waitForPublishCompletion>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
