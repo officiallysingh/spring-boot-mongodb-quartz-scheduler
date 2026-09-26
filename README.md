@@ -23,7 +23,8 @@
 17. [How jobs are created](#how-jobs-are-created)
 18. [What is stored in MongoDB](#what-is-stored-in-mongodb)
 19. [Time: Instant, ZoneId, and cron](#time-instant-zoneid-and-cron)
-20. [Running without Spring Boot auto-configuration](#running-without-spring-boot-auto-configuration)
+20. [Actuator: health, the quartz endpoint, and metrics](#actuator-health-the-quartz-endpoint-and-metrics)
+21. [Running without Spring Boot auto-configuration](#running-without-spring-boot-auto-configuration)
 
 ## What stock Quartz makes you live with
 
@@ -45,6 +46,7 @@ Quartz is a solid scheduler. The parts that hurt in a Spring Boot service that a
 * **Spring jobs.** Each fire constructs a new job instance, autowires it from the application context, copies `JobDataMap` entries onto matching setters, and destroys the instance when the fire finishes.
 * **Optional virtual-thread pool.** `quartz.scheduler.thread-pool.virtual=true` runs each job on a virtual thread. `thread-count` is still the concurrency cap, so the scheduler does not acquire an unbounded number of triggers.
 * **History plugins that log ISO-8601 instants.** They are off until you declare them as beans.
+* **Actuator support, when the actuator jars are present.** A `quartz` health contributor, Micrometer meters, and `/actuator/quartz`. Each one stays out of the context when its classes, the `Scheduler` bean, or a `MeterRegistry` is missing. A bean you declare yourself wins.
 
 > **Important**
 >
@@ -800,6 +802,115 @@ Instant republicDayMorning = DateBuilder.newDateInTimezone(ZoneId.of("Asia/Kolka
 ```
 
 Cron expressions answer "which wall-clock fields match". That answer depends on a zone, so cron keeps `TimeZone`. An `Instant` is the result after the zone is applied.
+
+## Actuator: health, the quartz endpoint, and metrics
+
+Add `spring-boot-starter-actuator`. The scheduler jar already contains the auto-configuration. Nothing else is required. The scheduler still starts if actuator is not on the classpath.
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+
+```groovy
+implementation 'org.springframework.boot:spring-boot-starter-actuator'
+```
+
+Keep Spring Boot's own `spring-boot-starter-quartz` off the classpath. That module registers a second endpoint with id `quartz`, compiled against `java.util.Date` fire times.
+
+### Health
+
+`quartz` is a contributor on `/actuator/health`. It reads scheduler state only. Mongo availability stays on the Mongo health indicator.
+
+| Status | When |
+| --- | --- |
+| `UP` | Started and firing triggers. |
+| `OUT_OF_SERVICE` | Not started yet, or in standby. The process is alive and is deliberately not firing. |
+| `DOWN` | Shut down, or the state cannot be read. |
+
+Details are the scheduler name and instance id, job store class, clustered flag, standby flag, thread pool size, jobs executed, jobs executing, and `runningSince` (an ISO-8601 instant).
+
+```yaml
+management:
+  health:
+    quartz:
+      enabled: true
+  endpoint:
+    health:
+      show-details: always
+```
+
+Turn the contributor off with `management.health.quartz.enabled=false`.
+
+### Quartz endpoint
+
+`/actuator/quartz` lists jobs and triggers the same way Spring Boot's Quartz endpoint does. Fire times in the JSON are ISO-8601 instants. Intervals are still milliseconds.
+
+Expose it, and choose when job data map values are shown:
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,quartz
+  endpoint:
+    quartz:
+      show-values: never   # never (default), always, when-authorized
+      roles: [ ADMIN ]
+```
+
+`show-values` controls unsanitized job and trigger data. `never` masks values. `when-authorized` shows them to authenticated users, or only to the roles listed in `roles` when that set is not empty. `always` shows them to every caller.
+
+```
+GET /actuator/quartz
+GET /actuator/quartz/jobs
+GET /actuator/quartz/jobs/{group}
+GET /actuator/quartz/jobs/{group}/{name}
+GET /actuator/quartz/triggers
+GET /actuator/quartz/triggers/{group}
+GET /actuator/quartz/triggers/{group}/{name}
+```
+
+Run a durable job now:
+
+```
+POST /actuator/quartz/jobs/reports/daily-report
+Content-Type: application/json
+
+{"state":"running"}
+```
+
+Any other `state`, or a path that is not `jobs`, returns 400.
+
+### Metrics
+
+When a `MeterRegistry` is present, these meters are registered. Scheduler meters read in-memory state, so a scrape does not query MongoDB.
+
+| Meter | Type | Tags |
+| --- | --- | --- |
+| `quartz.scheduler.jobs.executed` | counter | `scheduler` |
+| `quartz.scheduler.jobs.executing` | gauge | `scheduler` |
+| `quartz.scheduler.threads` | gauge | `scheduler` |
+| `quartz.scheduler.running` | gauge, 1 or 0 | `scheduler` |
+| `quartz.job.execution` | timer | `group`, `job`, `outcome`, `exception` |
+| `quartz.job.active` | long task timer | `group`, `job` |
+| `quartz.job.vetoed` | counter | `group`, `job` |
+| `quartz.trigger.misfires` | counter | `group`, `trigger` |
+
+Job meters are tagged per job. A schedule with many unique job names will create many meters. Drop the tags with a `MeterFilter`, or disable the job meters:
+
+```yaml
+management:
+  metrics:
+    enable:
+      quartz:
+        job: false
+```
+
+`management.metrics.enable.quartz=false` disables every meter whose name starts with `quartz`.
 
 ## Running without Spring Boot auto-configuration
 
