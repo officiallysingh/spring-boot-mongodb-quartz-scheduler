@@ -11,7 +11,7 @@
 
     <name>spring-boot-mongodb-quartz-scheduler</name>
     <description>Quartz Job Scheduler with Spring Boot autoconfiguration and MongoDB support</description>
-    <url>https://github.com/officiallysingh/spring-boot-mongodb-quartz-scheduler.git</url>
+    <url>https://github.com/officiallysingh/spring-boot-mongodb-quartz-scheduler</url>
 
     <organization>
         <name>Ksoot Technologies</name>
@@ -39,7 +39,7 @@
 
         <slf4j.version>2.0.17</slf4j.version>
         <mongodb.driver.version>5.8.1</mongodb.driver.version>
-        <junit.version>6.1.4</junit.version>
+        <junit.version>6.1.3</junit.version>
         <mockito.version>5.24.0</mockito.version>
         <testcontainers.version>1.21.4</testcontainers.version>
         <hamcrest.version>3.0</hamcrest.version>
@@ -48,19 +48,17 @@
 
         <scm.connection>scm:git:git@github.com:officiallysingh/spring-boot-mongodb-quartz-scheduler.git</scm.connection>
         <maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
-        <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
+        <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
         <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
-        <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
-        <nexus-staging-maven-plugin.version>1.7.0</nexus-staging-maven-plugin.version>
-        <maven-release-plugin.version>3.1.1</maven-release-plugin.version>
-        <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
+        <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
+        <maven-release-plugin.version>3.3.1</maven-release-plugin.version>
+        <maven-deploy-plugin.version>3.2.0</maven-deploy-plugin.version>
 
         <fmt-maven-plugin.version>2.29</fmt-maven-plugin.version>
-        <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
-        <central-publishing-maven-plugin.version>0.10.0</central-publishing-maven-plugin.version>
+        <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
 
-        <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
-        <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
+        <maven-jar-plugin.version>3.5.1</maven-jar-plugin.version>
+        <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -83,11 +81,13 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j.version}</version>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongodb-driver-sync</artifactId>
             <version>${mongodb.driver.version}</version>
+            <optional>true</optional>
         </dependency>
 
         <dependency>
@@ -250,30 +250,6 @@
                     </archive>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>${maven-source-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <goals>
-                            <goal>jar-no-fork</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>${maven-javadoc-plugin.version}</version>
-                <configuration>
-                    <doctitle>Quartz Job Scheduler ${project.version} API</doctitle>
-                    <windowtitle>Quartz Job Scheduler ${project.version} API</windowtitle>
-                    <encoding>UTF-8</encoding>
-                    <failOnError>false</failOnError>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 
@@ -328,6 +304,13 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
                         <version>${maven-javadoc-plugin.version}</version>
+                        <configuration>
+                            <doctitle>Spring Boot Quartz Job Scheduler ${project.version} API</doctitle>
+                            <windowtitle>Spring Boot Quartz Job Scheduler ${project.version} API</windowtitle>
+                            <encoding>UTF-8</encoding>
+                            <failOnError>false</failOnError>
+                            <source>${maven.compiler.source}</source>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
@@ -336,9 +319,6 @@
                                 </goals>
                             </execution>
                         </executions>
-                        <configuration>
-                            <source>${maven.compiler.source}</source>
-                        </configuration>
                     </plugin>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
