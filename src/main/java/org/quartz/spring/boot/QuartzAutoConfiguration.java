@@ -186,7 +186,7 @@ public class QuartzAutoConfiguration {
     }
     try {
       return new ConnectionString(uri).getDatabase();
-    } catch (RuntimeException _) {
+    } catch (RuntimeException e) {
       return null;
     }
   }

@@ -1,6 +1,8 @@
 # Scheduling jobs in Spring Boot with Quartz and MongoDB
 
-**A Quartz scheduler for Spring Boot applications that persists jobs only in MongoDB.** Requires **Java 21+**, **Spring Boot 4+**, and a MongoDB database the application already uses. There is no JDBC job store, no in-memory job store, and no Terracotta job store. The official `spring-boot-starter-quartz` must stay off the classpath.
+**One jar for Quartz on Spring Boot, persisted only in MongoDB.** It contains the scheduler, the MongoDB job store, the history plugins, the Spring Boot auto-configuration, and the Actuator health check, endpoint, and metrics. Requires **Java 21+**, **Spring Boot 4+**, and a MongoDB database the application already uses.
+
+You do not add `spring-boot-starter-quartz`, and you do not add `org.quartz-scheduler:quartz`. Those artifacts are the JDBC edition of the same packages. This jar already plays their part, with MongoDB as the only job store. Putting both on the classpath fails startup: two copies of `org.quartz`, and two Actuator endpoints with the id `quartz`.
 
 ## Table of Contents
 
@@ -39,6 +41,46 @@ Quartz is a solid scheduler. The parts that hurt in a Spring Boot service that a
 
 ## What this library gives you
 
+This jar is the whole scheduler. A consuming application adds MongoDB, and adds Actuator only when it wants the monitoring endpoints. It does not assemble Quartz from the official starter, the Quartz jar, `spring-context-support`, and the `spring-boot-quartz` module.
+
+| Usually pulled in separately | Already in this jar |
+| --- | --- |
+| `org.quartz-scheduler:quartz` | Scheduler, jobs, triggers, calendars, cron, listeners |
+| `spring-boot-starter-quartz` | `QuartzAutoConfiguration` and `QuartzSchedulerFactoryBean`, wired to MongoDB |
+| `SpringBeanJobFactory` from `spring-context-support` | `AutowireCapableJobFactory`, a new autowired job instance per fire |
+| `org.quartz-scheduler:quartz-jobs` history plugins | `LoggingJobHistoryPlugin` and `LoggingTriggerHistoryPlugin` |
+| `QuartzEndpoint` from `spring-boot-quartz` | `/actuator/quartz`, with fire times as `Instant` |
+| Quartz health and Micrometer meters | `quartz` health contributor, scheduler gauges, per-job timers |
+
+What you still add in the application:
+
+* `spring-boot-starter-data-mongodb`, or any other source of a `com.mongodb.client.MongoClient` bean
+* `spring-boot-starter-actuator`, when you want `/actuator/health`, `/actuator/quartz`, and the Micrometer meters
+* Your own `Job` classes, and `JobDetail` / `Trigger` beans
+
+What you leave out:
+
+* `spring-boot-starter-quartz`
+* `org.quartz-scheduler:quartz`
+* A JDBC `DataSource` and the `QRTZ_*` DDL script
+
+> **Important**
+>
+> If a transitive dependency brings `org.quartz-scheduler:quartz` onto the classpath, exclude it. Spring Boot's Quartz starter pulls that jar, and it also registers an Actuator endpoint with the same id, `quartz`. The application context then fails while discovering endpoints.
+
+```xml
+<exclusion>
+    <groupId>org.quartz-scheduler</groupId>
+    <artifactId>quartz</artifactId>
+</exclusion>
+<exclusion>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-quartz</artifactId>
+</exclusion>
+```
+
+The rest of the behaviour:
+
 * **One job store: MongoDB.** `MongoJobStore` is the only `JobStore`. Jobs, triggers, and calendars are BSON documents. Acquire is a `findOneAndUpdate`. Unique indexes keep one document per job and per trigger. JDBC and `RAMJobStore` are not in this build.
 * **The application's Mongo client.** Auto-configuration uses the `MongoClient` Spring Boot already created. If that bean is absent and Spring Data's `MongoDatabaseFactory` is present, the job store uses that database. The store does not close a client it does not own, and it does not take a second Quartz connection string.
 * **Leases instead of recycled instance names.** Each process gets a fresh id (a UUID when `instance-id` is left empty). A trigger is owned until `leaseExpiresAt`. Recovery looks for an expired lease. It does not look up a hostname that a new pod reused.
@@ -46,24 +88,13 @@ Quartz is a solid scheduler. The parts that hurt in a Spring Boot service that a
 * **Spring jobs.** Each fire constructs a new job instance, autowires it from the application context, copies `JobDataMap` entries onto matching setters, and destroys the instance when the fire finishes.
 * **Optional virtual-thread pool.** `quartz.scheduler.thread-pool.virtual=true` runs each job on a virtual thread. `thread-count` is still the concurrency cap, so the scheduler does not acquire an unbounded number of triggers.
 * **History plugins that log ISO-8601 instants.** They are off until you declare them as beans.
-* **Actuator support, when the actuator jars are present.** A `quartz` health contributor, Micrometer meters, and `/actuator/quartz`. Each one stays out of the context when its classes, the `Scheduler` bean, or a `MeterRegistry` is missing. A bean you declare yourself wins.
-
-> **Important**
->
-> Do not add `org.springframework.boot:spring-boot-starter-quartz` or `org.quartz-scheduler:quartz`. Both define `org.quartz.*`. If another dependency pulls the official jar in, exclude it.
-
-```xml
-<exclusion>
-    <groupId>org.quartz-scheduler</groupId>
-    <artifactId>quartz</artifactId>
-</exclusion>
-```
+* **Actuator support, already compiled into this jar.** It activates when `spring-boot-starter-actuator` is on the classpath. You get a `quartz` health contributor, Micrometer meters, and `/actuator/quartz`. Each piece stays out of the context when its classes, the `Scheduler` bean, or a `MeterRegistry` is missing. A bean you declare yourself wins. `/actuator/health`, `info`, `metrics`, `prometheus`, `env`, and `beans` stay Spring Boot's own endpoints.
 
 ## Installation
 
 > **Current version: 0.0.1-SNAPSHOT.** The jar is built on Java 21. Spring Boot auto-configuration targets Spring Boot 4 (the Mongo auto-configuration package is `org.springframework.boot.mongodb.autoconfigure`).
 
-Add the jar. That registers `QuartzAutoConfiguration`. The scheduler starts after the application context is ready, provided a Mongo client or a Spring Data `MongoDatabaseFactory` exists.
+Add this jar. That registers `QuartzAutoConfiguration`, the Actuator auto-configurations, and the scheduler implementation. The scheduler starts after the application context is ready, provided a Mongo client or a Spring Data `MongoDatabaseFactory` exists. There is no second Quartz dependency to add.
 
 **Maven**
 
@@ -94,7 +125,23 @@ The application also needs a MongoDB driver on the classpath. `spring-boot-start
 implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
 ```
 
-`QuartzAutoConfiguration` is active when `quartz.scheduler.enabled` is missing or `true`, and when `org.quartz.Scheduler` and `com.mongodb.client.MongoClient` are on the classpath. Declare `JobDetail`, `Trigger`, `org.quartz.Calendar`, and `SchedulerPlugin` beans. They are registered on startup. No `SchedulerFactoryBean` from Spring's JDBC support is required.
+`QuartzAutoConfiguration` is active when `quartz.scheduler.enabled` is missing or `true`, and when `org.quartz.Scheduler` and `com.mongodb.client.MongoClient` are on the classpath. Declare `JobDetail`, `Trigger`, `org.quartz.Calendar`, and `SchedulerPlugin` beans. They are registered on startup. `QuartzSchedulerFactoryBean` in this jar is the factory. You do not declare Spring's JDBC `SchedulerFactoryBean`.
+
+Paste this next to the MongoDB settings when you are running one process against a standalone local `mongod`. Clustering defaults to on, and a standalone server is the wrong target for that mode.
+
+```yaml
+spring:
+  mongodb:
+    uri: mongodb://localhost:27017/appdb
+    database: appdb
+
+quartz:
+  scheduler:
+    clustered: false
+    overwrite-existing-jobs: true
+```
+
+`overwrite-existing-jobs: true` makes the trigger beans win on every restart, so a cron change in code replaces the document already stored in MongoDB. Set it back to `false` once operators reschedule triggers at runtime and a redeploy must leave those edits in place. The full property list is in [Scheduler configuration](#scheduler-configuration). A replica set deployment is in [Clustering](#clustering). Actuator is a separate dependency, covered in [Actuator](#actuator-health-the-quartz-endpoint-and-metrics).
 
 ## MongoDB
 
@@ -212,7 +259,27 @@ quartz:
 
 ## Your first job
 
-A job implements `org.quartz.Job`. It needs a public no-arg constructor. Collaborators are `@Autowired`. Quartz builds a **new instance for every fire**, autowires it, runs `execute`, then destroys it. Do not annotate the job with `@Component` and expect that singleton to be the instance that runs. Do not keep state in fields and expect the next fire to see it. Put that state in the `JobDataMap` or in MongoDB.
+A job implements `org.quartz.Job`. It needs a public no-arg constructor. Collaborators are `@Autowired`. Quartz builds a **new instance for every fire**, autowires it, runs `execute`, then destroys it. Leave `@Component` off the job class. A component-scanned singleton is a different object from the instance Quartz runs. Do not keep state in fields and expect the next fire to see it. Put that state in the `JobDataMap` or in MongoDB.
+
+The service below is an ordinary Spring bean. The job is not.
+
+```java
+package com.example.jobs;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+@Service
+public class ReportService {
+
+  private static final Logger log = LoggerFactory.getLogger(ReportService.class);
+
+  public void build(String region) {
+    log.info("Building report for {}", region);
+  }
+}
+```
 
 ```java
 package com.example.jobs;
@@ -282,7 +349,9 @@ public class ReportSchedule {
 }
 ```
 
-`storeDurably()` keeps the job when it has no trigger. `requestRecovery(true)` asks the cluster to run the job again if this node dies mid-execution.
+`storeDurably()` keeps the job when it has no trigger. `requestRecovery(true)` asks the cluster to run the job again if this node dies mid-execution. The trigger's `forJob("daily-report", "reports")` must match `withIdentity` on the `JobDetail`. The Spring bean method names (`dailyReportJob`, `dailyReportTrigger`) are not the Quartz names.
+
+With the YAML from [Installation](#installation) and these three classes, the job fires at 02:00 in the JVM time zone. `context.getScheduledFireTime()` is an `Instant`.
 
 Static imports used in the snippets below:
 
@@ -300,6 +369,8 @@ import static org.quartz.TriggerKey.triggerKey;
 ```
 
 ## Schedules you can copy
+
+Each block below is one extra `@Bean`. Paste one of them next to `dailyReportTrigger`, or replace that trigger. Pasting all of them registers every schedule against the same job, and the job will run at 02:00, at 08:15 on weekdays, every five minutes, and on the first of the month.
 
 ### Cron
 
@@ -451,6 +522,20 @@ with `usingJobData("customerId", "C-100")`.
 A durable job can be scheduled later, or fired immediately, from any Spring bean. Inject `Scheduler`. That is safe in services and controllers. It is not safe inside a `SchedulerPlugin` bean, because the plugin is created while the scheduler is still being built.
 
 ```java
+package com.example.jobs;
+
+import static org.quartz.JobBuilder.newJob;
+import static org.quartz.JobKey.jobKey;
+import static org.quartz.TriggerBuilder.newTrigger;
+
+import java.time.Instant;
+import org.quartz.JobDataMap;
+import org.quartz.JobDetail;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
+import org.quartz.Trigger;
+import org.springframework.stereotype.Service;
+
 @Service
 public class ReportScheduler {
 
@@ -490,24 +575,42 @@ public class ReportScheduler {
 A Quartz calendar is a set of times to **exclude**. The Spring bean name is the calendar name.
 
 ```java
-@Bean
-org.quartz.Calendar bankHolidays() {
-  HolidayCalendar calendar = new HolidayCalendar();
-  calendar.addExcludedDate(
-      LocalDate.of(2026, 1, 26).atStartOfDay(ZoneId.of("Asia/Kolkata")).toInstant());
-  return calendar;
-}
+package com.example.jobs;
 
-@Bean
-Trigger reportSkippingHolidays() {
-  return newTrigger()
-      .forJob("daily-report", "reports")
-      .withIdentity("daily-report-2am-holidays", "reports")
-      .withSchedule(dailyAtHourAndMinute(2, 0))
-      .modifiedByCalendar("bankHolidays")
-      .build();
+import static org.quartz.CronScheduleBuilder.dailyAtHourAndMinute;
+import static org.quartz.TriggerBuilder.newTrigger;
+
+import java.time.LocalDate;
+import java.time.ZoneId;
+import org.quartz.Trigger;
+import org.quartz.impl.calendar.HolidayCalendar;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class HolidaySchedule {
+
+  @Bean
+  org.quartz.Calendar bankHolidays() {
+    HolidayCalendar calendar = new HolidayCalendar();
+    calendar.addExcludedDate(
+        LocalDate.of(2026, 1, 26).atStartOfDay(ZoneId.of("Asia/Kolkata")).toInstant());
+    return calendar;
+  }
+
+  @Bean
+  Trigger reportSkippingHolidays() {
+    return newTrigger()
+        .forJob("daily-report", "reports")
+        .withIdentity("daily-report-2am-holidays", "reports")
+        .withSchedule(dailyAtHourAndMinute(2, 0))
+        .modifiedByCalendar("bankHolidays")
+        .build();
+  }
 }
 ```
+
+The `@Bean` method name `bankHolidays` is the calendar name. `modifiedByCalendar("bankHolidays")` has to be that same string. This trigger is a second schedule. Remove `dailyReportTrigger` if 02:00 should run only on this calendar.
 
 `HolidayCalendar`, `AnnualCalendar`, `WeeklyCalendar`, `MonthlyCalendar`, `DailyCalendar`, and `CronCalendar` are included. Excluded dates are `Instant`.
 
@@ -591,14 +694,25 @@ quartz:
 `LoggingJobHistoryPlugin` and `LoggingTriggerHistoryPlugin` log fire, success, failure, veto, misfire, and completion through SLF4J. Timestamps in the messages are ISO-8601 `Instant` strings. They are not registered unless you declare the beans. The Spring bean name is the plugin name passed to `initialize`.
 
 ```java
-@Bean
-LoggingJobHistoryPlugin jobHistory() {
-  return new LoggingJobHistoryPlugin();
-}
+package com.example.jobs;
 
-@Bean
-LoggingTriggerHistoryPlugin triggerHistory() {
-  return new LoggingTriggerHistoryPlugin();
+import org.quartz.plugins.history.LoggingJobHistoryPlugin;
+import org.quartz.plugins.history.LoggingTriggerHistoryPlugin;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class QuartzHistoryPlugins {
+
+  @Bean
+  LoggingJobHistoryPlugin jobHistory() {
+    return new LoggingJobHistoryPlugin();
+  }
+
+  @Bean
+  LoggingTriggerHistoryPlugin triggerHistory() {
+    return new LoggingTriggerHistoryPlugin();
+  }
 }
 ```
 
@@ -620,6 +734,18 @@ LoggingJobHistoryPlugin jobHistory() {
 A plugin is the supported way to attach a listener at startup. Implement `SchedulerPlugin` and `JobListener` (or `TriggerListener`). Register a bean. The bean name becomes `getName()`.
 
 ```java
+package com.example.jobs;
+
+import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
+import org.quartz.JobListener;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
+import org.quartz.impl.matchers.EverythingMatcher;
+import org.quartz.spi.SchedulerPlugin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class MetricsJobListener implements SchedulerPlugin, JobListener {
 
   private static final Logger log = LoggerFactory.getLogger(MetricsJobListener.class);
@@ -700,17 +826,20 @@ scheduler.deleteJob(jobKey("daily-report", "reports"));
 scheduler.interrupt(jobKey("daily-report", "reports"));
 ```
 
-`interrupt` only works when the job implements `InterruptableJob` and the execution is on this JVM.
+`interrupt` only works when the job implements `InterruptableJob` and the execution is on this JVM. Add `import org.quartz.InterruptableJob` and `import java.util.concurrent.atomic.AtomicBoolean`, and keep the `@Autowired ReportService` field from the job above. Check the flag between steps. A tight loop would pin a worker thread.
 
 ```java
 public class DailyReportJob implements InterruptableJob {
+
   private final AtomicBoolean stop = new AtomicBoolean();
 
   @Override
-  public void execute(JobExecutionContext context) {
-    while (!stop.get()) {
-      // work that can notice the flag
+  public void execute(JobExecutionContext context) throws JobExecutionException {
+    if (stop.get()) {
+      return;
     }
+    // check stop between steps of a long job
+    reportService.build(context.getMergedJobDataMap().getString("region"));
   }
 
   @Override
@@ -805,7 +934,11 @@ Cron expressions answer "which wall-clock fields match". That answer depends on 
 
 ## Actuator: health, the quartz endpoint, and metrics
 
-Add `spring-boot-starter-actuator`. The scheduler jar already contains the auto-configuration. Nothing else is required. The scheduler still starts if actuator is not on the classpath.
+The health contributor, the `/actuator/quartz` endpoint, and the Micrometer binders are already in this jar. They are the same kind of support Spring Boot ships in the `spring-boot-quartz` module for the JDBC starter, written here against `Instant` fire times and `MongoJobStore`.
+
+`spring-boot-starter-actuator` is still required. That starter turns on Spring Boot's Actuator infrastructure (`/actuator/health`, `metrics`, `info`, and the endpoint discovery). It does not contain a Quartz endpoint of its own. Spring Boot 4 moved that endpoint into `spring-boot-quartz`, which arrives only with `spring-boot-starter-quartz`. Leave that starter off. This jar registers the one `quartz` endpoint.
+
+The scheduler runs with or without Actuator. With Actuator on the classpath, the usual endpoints keep their Spring Boot behaviour. This library adds a health component named `quartz`, a set of meters whose names start with `quartz.`, and, once you expose it, `/actuator/quartz`.
 
 ```xml
 <dependency>
@@ -818,38 +951,6 @@ Add `spring-boot-starter-actuator`. The scheduler jar already contains the auto-
 implementation 'org.springframework.boot:spring-boot-starter-actuator'
 ```
 
-Keep Spring Boot's own `spring-boot-starter-quartz` off the classpath. That module registers a second endpoint with id `quartz`, compiled against `java.util.Date` fire times.
-
-### Health
-
-`quartz` is a contributor on `/actuator/health`. It reads scheduler state only. Mongo availability stays on the Mongo health indicator.
-
-| Status | When |
-| --- | --- |
-| `UP` | Started and firing triggers. |
-| `OUT_OF_SERVICE` | Not started yet, or in standby. The process is alive and is deliberately not firing. |
-| `DOWN` | Shut down, or the state cannot be read. |
-
-Details are the scheduler name and instance id, job store class, clustered flag, standby flag, thread pool size, jobs executed, jobs executing, and `runningSince` (an ISO-8601 instant).
-
-```yaml
-management:
-  health:
-    quartz:
-      enabled: true
-  endpoint:
-    health:
-      show-details: always
-```
-
-Turn the contributor off with `management.health.quartz.enabled=false`.
-
-### Quartz endpoint
-
-`/actuator/quartz` lists jobs and triggers the same way Spring Boot's Quartz endpoint does. Fire times in the JSON are ISO-8601 instants. Intervals are still milliseconds.
-
-Expose it, and choose when job data map values are shown:
-
 ```yaml
 management:
   endpoints:
@@ -857,12 +958,71 @@ management:
       exposure:
         include: health,quartz
   endpoint:
+    health:
+      show-details: always
     quartz:
-      show-values: never   # never (default), always, when-authorized
+      show-values: when-authorized
       roles: [ ADMIN ]
+  health:
+    quartz:
+      enabled: true
 ```
 
-`show-values` controls unsanitized job and trigger data. `never` masks values. `when-authorized` shows them to authenticated users, or only to the roles listed in `roles` when that set is not empty. `always` shows them to every caller.
+`include: health` is Spring Boot's web default. Adding `quartz` publishes the scheduler endpoint on HTTP. JMX already exposes every endpoint, which is Spring Boot's own default and is unchanged.
+
+### Health
+
+`quartz` is one contributor on `/actuator/health`, next to `mongo`, `ping`, and `diskSpace`. It reads scheduler state in memory. It does not ping MongoDB. The Mongo health indicator still answers that.
+
+| Status | When |
+| --- | --- |
+| `UP` | Started, and not in standby. |
+| `OUT_OF_SERVICE` | Not started yet, or in standby. The process is up and is deliberately not firing. |
+| `DOWN` | Shut down, or the state cannot be read. |
+
+Spring Boot rolls contributor statuses into the top-level `/actuator/health` status. `OUT_OF_SERVICE` beats `UP`, so a scheduler that has not started yet, or `quartz.scheduler.auto-startup: false`, makes the whole health payload `OUT_OF_SERVICE`. The `liveness` and `readiness` groups stay on Spring Boot's defaults and do not include this contributor. A probe that calls `/actuator/health` and treats anything other than `UP` as failure will fail while the scheduler is in standby. Point that probe at `/actuator/health/liveness`, or turn the contributor off:
+
+```yaml
+management:
+  health:
+    quartz:
+      enabled: false
+```
+
+```
+curl -s http://localhost:8080/actuator/health/quartz
+```
+
+```json
+{
+  "status": "UP",
+  "details": {
+    "name": "quartzScheduler",
+    "instanceId": "6f1c0a2e-1b4a-4d2e-9c33-0a6d2e8b7f10",
+    "jobStore": "org.quartz.impl.mongodb.MongoJobStore",
+    "clustered": false,
+    "standby": false,
+    "threadPoolSize": 10,
+    "jobsExecuted": 1,
+    "executingJobs": 0,
+    "runningSince": "2026-09-26T03:00:00Z"
+  }
+}
+```
+
+`runningSince` is omitted until the scheduler has started. `instanceId` is the lease id for this process.
+
+Declaring a `HealthContributor` bean named `quartzHealthIndicator` or `quartzHealthContributor` replaces this one.
+
+### Quartz endpoint
+
+The paths match Spring Boot's Quartz endpoint. Fire times in the JSON are ISO-8601 instants. A simple trigger's `interval` is still milliseconds.
+
+`show-values` controls job and trigger data map values:
+
+* `never`, the default, masks every value as `******`
+* `always` shows them to every caller
+* `when-authorized` shows them to an authenticated user. When `roles` is not empty, the user must have one of those roles
 
 ```
 GET /actuator/quartz
@@ -874,20 +1034,72 @@ GET /actuator/quartz/triggers/{group}
 GET /actuator/quartz/triggers/{group}/{name}
 ```
 
-Run a durable job now:
+Against the daily report from [Your first job](#your-first-job):
 
 ```
-POST /actuator/quartz/jobs/reports/daily-report
-Content-Type: application/json
-
-{"state":"running"}
+curl -s http://localhost:8080/actuator/quartz/jobs/reports/daily-report
 ```
 
-Any other `state`, or a path that is not `jobs`, returns 400.
+```json
+{
+  "group": "reports",
+  "name": "daily-report",
+  "description": "Nightly report",
+  "className": "com.example.jobs.DailyReportJob",
+  "durable": true,
+  "requestRecovery": true,
+  "data": {
+    "region": "******"
+  },
+  "triggers": [
+    {
+      "group": "reports",
+      "name": "daily-report-2am",
+      "priority": 5
+    }
+  ]
+}
+```
+
+`nextFireTime` and `previousFireTime` appear on that trigger summary once Quartz has computed them. The job list does not include the cron expression. The trigger resource does:
+
+```
+curl -s http://localhost:8080/actuator/quartz/triggers/reports/daily-report-2am
+```
+
+```json
+{
+  "group": "reports",
+  "name": "daily-report-2am",
+  "state": "NORMAL",
+  "type": "cron",
+  "priority": 5,
+  "nextFireTime": "2026-09-27T02:00:00Z",
+  "cron": {
+    "expression": "0 0 2 ? * *"
+  }
+}
+```
+
+`state` is what `Scheduler.getTriggerState` returns: `NORMAL`, `PAUSED`, `COMPLETE`, `ERROR`, `BLOCKED`, or `NONE`. A trigger waiting to fire is reported as `NORMAL`. `type` is `cron`, `simple`, `calendarInterval`, or `dailyTimeInterval`. The object under that type holds the expression or the interval. `dailyAtHourAndMinute(2, 0)` produces `0 0 2 ? * *` and interprets those fields in the JVM time zone. After `.inTimeZone(TimeZone.getTimeZone("Asia/Kolkata"))` the same expression is 02:00 in Kolkata, and the `cron` object also carries `timeZone`.
+
+Run the durable job once, without changing its cron trigger. The group and name are the `withIdentity` values, `reports` and `daily-report`.
+
+```
+curl -s -X POST http://localhost:8080/actuator/quartz/jobs/reports/daily-report \
+  -H 'Content-Type: application/json' \
+  -d '{"state":"running"}'
+```
+
+The response is the group, the name, and `triggerTime` as an `Instant`. Any other `state`, or a path whose first segment is not `jobs`, returns HTTP 400. An unknown job returns HTTP 404.
+
+`management.endpoint.quartz.access=none` removes the endpoint entirely, including JMX.
+
+A `QuartzEndpoint` bean of your own replaces the auto-configured one.
 
 ### Metrics
 
-When a `MeterRegistry` is present, these meters are registered. Scheduler meters read in-memory state, so a scrape does not query MongoDB.
+Meters are registered when a `MeterRegistry` bean exists. `spring-boot-starter-actuator` brings Micrometer, so a normal Actuator application has one. Scheduler meters read in-memory state. A scrape does not query MongoDB.
 
 | Meter | Type | Tags |
 | --- | --- | --- |
@@ -900,7 +1112,14 @@ When a `MeterRegistry` is present, these meters are registered. Scheduler meters
 | `quartz.job.vetoed` | counter | `group`, `job` |
 | `quartz.trigger.misfires` | counter | `group`, `trigger` |
 
-Job meters are tagged per job. A schedule with many unique job names will create many meters. Drop the tags with a `MeterFilter`, or disable the job meters:
+`quartz.scheduler.running` is `1` when the scheduler has started, is not in standby, and has not shut down. `outcome` on the execution timer is `SUCCESS` or `ERROR`. `exception` is `none` on success, or the simple class name of the root cause on failure.
+
+```
+curl -s http://localhost:8080/actuator/metrics/quartz.scheduler.threads
+curl -s 'http://localhost:8080/actuator/metrics/quartz.job.execution?tag=group:reports&tag=job:daily-report'
+```
+
+Job meters are tagged with the job name. A schedule that creates a new job name per request will create a new set of meters per name. Drop `group` and `job` with a `MeterFilter`, or disable the per-job meters and keep the scheduler gauges:
 
 ```yaml
 management:
@@ -910,38 +1129,53 @@ management:
         job: false
 ```
 
-`management.metrics.enable.quartz=false` disables every meter whose name starts with `quartz`.
+`management.metrics.enable.quartz=false` disables every meter whose name starts with `quartz`. JVM, HTTP, and Mongo meters are unaffected.
+
+A `QuartzMetrics` or `QuartzJobMetrics` bean of your own replaces the matching auto-configured binder. The job binder registers listeners named `quartzJobMetrics` and `quartzTriggerMetrics`. A listener you add under another name stays in place.
 
 ## Running without Spring Boot auto-configuration
 
 Set `quartz.scheduler.enabled=false` and build the scheduler yourself when you want full control. You still only get `MongoJobStore`.
 
 ```java
-@Bean
-Scheduler scheduler(MongoClient mongoClient) throws SchedulerException {
-  Properties props = new Properties();
-  props.setProperty("org.quartz.scheduler.instanceName", "quartzScheduler");
-  props.setProperty("org.quartz.scheduler.instanceId", "AUTO");
-  props.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
-  props.setProperty("org.quartz.threadPool.threadCount", "10");
-  props.setProperty("org.quartz.jobStore.class", "org.quartz.impl.mongodb.MongoJobStore");
-  props.setProperty("org.quartz.jobStore.dbName", "appdb");
-  props.setProperty("org.quartz.jobStore.collectionPrefix", "qrtz_");
-  props.setProperty("org.quartz.jobStore.isClustered", "false");
-  props.setProperty("org.quartz.jobStore.misfireThreshold", "60000");
+package com.example.jobs;
 
-  StdSchedulerFactory factory = new StdSchedulerFactory();
-  factory.setMongoClient(mongoClient);
-  factory.initialize(props);
-  Scheduler scheduler = factory.getScheduler();
-  scheduler.start();
-  return scheduler;
+import com.mongodb.client.MongoClient;
+import java.util.Properties;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
+import org.quartz.impl.StdSchedulerFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class ManualQuartzConfig {
+
+  @Bean(destroyMethod = "shutdown")
+  Scheduler scheduler(MongoClient mongoClient) throws SchedulerException {
+    Properties props = new Properties();
+    props.setProperty("org.quartz.scheduler.instanceName", "quartzScheduler");
+    props.setProperty("org.quartz.scheduler.instanceId", "AUTO");
+    props.setProperty("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
+    props.setProperty("org.quartz.threadPool.threadCount", "10");
+    props.setProperty("org.quartz.jobStore.dbName", "appdb");
+    props.setProperty("org.quartz.jobStore.collectionPrefix", "qrtz_");
+    props.setProperty("org.quartz.jobStore.isClustered", "false");
+    props.setProperty("org.quartz.jobStore.misfireThreshold", "60000");
+
+    StdSchedulerFactory factory = new StdSchedulerFactory();
+    factory.setMongoClient(mongoClient);
+    factory.initialize(props);
+    Scheduler scheduler = factory.getScheduler();
+    scheduler.start();
+    return scheduler;
+  }
 }
 ```
 
-`org.quartz.jobStore.class` is accepted and then ignored if it names something else. The factory always constructs `MongoJobStore`. Passing `setMongoClient` means shutdown will not close that client.
+`StdSchedulerFactory` always constructs `MongoJobStore`. There is no `org.quartz.jobStore.class` to set. `setMongoClient` means shutdown will not close that client. `destroyMethod = "shutdown"` stops the scheduler when the context closes.
 
-If you do use auto-configuration, prefer `quartz.scheduler.*` over raw `org.quartz.*` keys. Raw keys belong in `quartz.scheduler.properties` and lose to the typed fields when both are set.
+This path does not install `AutowireCapableJobFactory`, so `@Autowired` fields on the job stay null. The auto-configured scheduler is the one that wires them. Prefer `quartz.scheduler.*` for that path. Raw `org.quartz.*` keys belong in `quartz.scheduler.properties`, and the typed fields win when both are set.
 
 ## Licence
 
