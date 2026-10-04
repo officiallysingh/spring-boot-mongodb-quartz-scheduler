@@ -117,22 +117,22 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  /** Create a <code>DateIntervalTrigger</code> with no settings. */
+  /** Create a <code>CalendarIntervalTrigger</code> with no settings. */
   public CalendarIntervalTriggerImpl() {
     super();
   }
 
   /**
-   * Create a <code>DateIntervalTrigger</code> that will occur immediately, and repeat at the given
-   * interval.
+   * Create a <code>CalendarIntervalTrigger</code> that will occur immediately, and repeat at the
+   * given interval.
    */
   public CalendarIntervalTriggerImpl(String name, IntervalUnit intervalUnit, int repeatInterval) {
     this(name, null, intervalUnit, repeatInterval);
   }
 
   /**
-   * Create a <code>DateIntervalTrigger</code> that will occur immediately, and repeat at the given
-   * interval.
+   * Create a <code>CalendarIntervalTrigger</code> that will occur immediately, and repeat at the
+   * given interval.
    */
   public CalendarIntervalTriggerImpl(
       String name, String group, IntervalUnit intervalUnit, int repeatInterval) {
@@ -140,14 +140,14 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   /**
-   * Create a <code>DateIntervalTrigger</code> that will occur at the given time, and repeat at the
-   * given interval until the given end time.
+   * Create a <code>CalendarIntervalTrigger</code> that will occur at the given time, and repeat at
+   * the given interval until the given end time.
    *
-   * @param startTime A <code>Date</code> set to the time for the <code>Trigger</code> to fire.
-   * @param endTime A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat
-   *     firing.
-   * @param intervalUnit The repeat interval unit (minutes, days, months, etc).
-   * @param repeatInterval The number of milliseconds to pause between the repeat firing.
+   * @param startTime the {@link Instant} at which the <code>Trigger</code> should first fire
+   * @param endTime the {@link Instant} at which the <code>Trigger</code> should quit repeating, or
+   *     <code>null</code> for no end
+   * @param intervalUnit the repeat interval unit (minutes, days, months, and so on)
+   * @param repeatInterval how many units of {@code intervalUnit} to wait between firings
    */
   public CalendarIntervalTriggerImpl(
       String name,
@@ -159,14 +159,14 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   /**
-   * Create a <code>DateIntervalTrigger</code> that will occur at the given time, and repeat at the
-   * given interval until the given end time.
+   * Create a <code>CalendarIntervalTrigger</code> that will occur at the given time, and repeat at
+   * the given interval until the given end time.
    *
-   * @param startTime A <code>Date</code> set to the time for the <code>Trigger</code> to fire.
-   * @param endTime A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat
-   *     firing.
-   * @param intervalUnit The repeat interval unit (minutes, days, months, etc).
-   * @param repeatInterval The number of milliseconds to pause between the repeat firing.
+   * @param startTime the {@link Instant} at which the <code>Trigger</code> should first fire
+   * @param endTime the {@link Instant} at which the <code>Trigger</code> should quit repeating, or
+   *     <code>null</code> for no end
+   * @param intervalUnit the repeat interval unit (minutes, days, months, and so on)
+   * @param repeatInterval how many units of {@code intervalUnit} to wait between firings
    */
   public CalendarIntervalTriggerImpl(
       String name,
@@ -184,14 +184,14 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   /**
-   * Create a <code>DateIntervalTrigger</code> that will occur at the given time, fire the
+   * Create a <code>CalendarIntervalTrigger</code> that will occur at the given time, fire the
    * identified <code>Job</code> and repeat at the given interval until the given end time.
    *
-   * @param startTime A <code>Date</code> set to the time for the <code>Trigger</code> to fire.
-   * @param endTime A <code>Date</code> set to the time for the <code>Trigger</code> to quit repeat
-   *     firing.
-   * @param intervalUnit The repeat interval unit (minutes, days, months, etc).
-   * @param repeatInterval The number of milliseconds to pause between the repeat firing.
+   * @param startTime the {@link Instant} at which the <code>Trigger</code> should first fire
+   * @param endTime the {@link Instant} at which the <code>Trigger</code> should quit repeating, or
+   *     <code>null</code> for no end
+   * @param intervalUnit the repeat interval unit (minutes, days, months, and so on)
+   * @param repeatInterval how many units of {@code intervalUnit} to wait between firings
    */
   public CalendarIntervalTriggerImpl(
       String name,
@@ -218,7 +218,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
    * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    */
 
-  /** Get the time at which the <code>DateIntervalTrigger</code> should occur. */
+  /** Get the time at which the <code>CalendarIntervalTrigger</code> should occur. */
   @Override
   public Instant getStartTime() {
     if (startTime == null) startTime = Instant.now();
@@ -226,7 +226,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   /**
-   * Set the time at which the <code>DateIntervalTrigger</code> should occur.
+   * Set the time at which the <code>CalendarIntervalTrigger</code> should occur.
    *
    * @exception IllegalArgumentException if startTime is <code>null</code>.
    */
@@ -244,7 +244,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   /**
-   * Get the time at which the <code>DateIntervalTrigger</code> should quit repeating.
+   * Get the time at which the <code>CalendarIntervalTrigger</code> should quit repeating.
    *
    * @see #getFinalFireTime()
    */
@@ -254,7 +254,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   /**
-   * Set the time at which the <code>DateIntervalTrigger</code> should quit repeating (and be
+   * Set the time at which the <code>CalendarIntervalTrigger</code> should quit repeating (and be
    * automatically deleted).
    *
    * @exception IllegalArgumentException if endTime is before start time.
@@ -268,9 +268,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     this.endTime = endTime;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.DateIntervalTriggerI#getRepeatIntervalUnit()
-   */
+  /** {@inheritDoc} */
   public IntervalUnit getRepeatIntervalUnit() {
     return repeatIntervalUnit;
   }
@@ -280,18 +278,17 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     this.repeatIntervalUnit = intervalUnit;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.DateIntervalTriggerI#getRepeatInterval()
-   */
+  /** {@inheritDoc} */
   public int getRepeatInterval() {
     return repeatInterval;
   }
 
   /**
-   * set the time interval that will be added to the <code>DateIntervalTrigger</code>'s fire time
-   * (in the set repeat interval unit) in order to calculate the time of the next trigger repeat.
+   * set the time interval that will be added to the <code>CalendarIntervalTrigger</code>'s fire
+   * time (in the set repeat interval unit) in order to calculate the time of the next trigger
+   * repeat.
    *
-   * @exception IllegalArgumentException if repeatInterval is &lt; 1
+   * @throws IllegalArgumentException if {@code repeatInterval} is negative
    */
   public void setRepeatInterval(int repeatInterval) {
     if (repeatInterval < 0) {
@@ -301,9 +298,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     this.repeatInterval = repeatInterval;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.CalendarIntervalTriggerI#getTimeZone()
-   */
+  /** {@inheritDoc} */
   public TimeZone getTimeZone() {
 
     if (timeZone == null) {
@@ -372,14 +367,12 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
     this.skipDayIfHourDoesNotExist = skipDayIfHourDoesNotExist;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.DateIntervalTriggerI#getTimesTriggered()
-   */
+  /** {@inheritDoc} */
   public int getTimesTriggered() {
     return timesTriggered;
   }
 
-  /** Set the number of times the <code>DateIntervalTrigger</code> has already fired. */
+  /** Set the number of times the <code>CalendarIntervalTrigger</code> has already fired. */
   public void setTimesTriggered(int timesTriggered) {
     this.timesTriggered = timesTriggered;
   }
@@ -394,8 +387,8 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   /**
-   * Updates the <code>DateIntervalTrigger</code>'s state based on the MISFIRE_INSTRUCTION_XXX that
-   * was selected when the <code>DateIntervalTrigger</code> was created.
+   * Updates the <code>CalendarIntervalTrigger</code>'s state based on the MISFIRE_INSTRUCTION_XXX
+   * that was selected when the <code>CalendarIntervalTrigger</code> was created.
    *
    * <p>If the misfire instruction is set to MISFIRE_INSTRUCTION_SMART_POLICY, then the following
    * scheme will be used:
@@ -533,8 +526,8 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   /**
-   * Returns the previous time at which the <code>DateIntervalTrigger</code> fired. If the trigger
-   * has not yet fired, <code>null</code> will be returned.
+   * Returns the previous time at which the <code>CalendarIntervalTrigger</code> fired. If the
+   * trigger has not yet fired, <code>null</code> will be returned.
    */
   @Override
   public Instant getPreviousFireTime() {
@@ -542,7 +535,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   /**
-   * Set the next time at which the <code>DateIntervalTrigger</code> should fire.
+   * Set the next time at which the <code>CalendarIntervalTrigger</code> should fire.
    *
    * <p><b>This method should not be invoked by client code.</b>
    */
@@ -551,7 +544,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   /**
-   * Set the previous time at which the <code>DateIntervalTrigger</code> fired.
+   * Set the previous time at which the <code>CalendarIntervalTrigger</code> fired.
    *
    * <p><b>This method should not be invoked by client code.</b>
    */
@@ -560,8 +553,9 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   /**
-   * Returns the next time at which the <code>DateIntervalTrigger</code> will fire, after the given
-   * time. If the trigger will not fire after the given time, <code>null</code> will be returned.
+   * Returns the next time at which the <code>CalendarIntervalTrigger</code> will fire, after the
+   * given time. If the trigger will not fire after the given time, <code>null</code> will be
+   * returned.
    */
   @Override
   public Instant getFireTimeAfter(Instant afterTime) {
@@ -739,8 +733,8 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
   }
 
   /**
-   * Returns the final time at which the <code>DateIntervalTrigger</code> will fire, if there is no
-   * end time set, null will be returned.
+   * Returns the final time at which the <code>CalendarIntervalTrigger</code> will fire, if there is
+   * no end time set, null will be returned.
    *
    * <p>Note that the return time may be in the past.
    */
@@ -789,7 +783,7 @@ public class CalendarIntervalTriggerImpl extends AbstractTrigger<CalendarInterva
         && time.atZone(ZoneId.systemDefault()).getYear() > YEAR_TO_GIVEUP_SCHEDULING_AT;
   }
 
-  /** Determines whether or not the <code>DateIntervalTrigger</code> will occur again. */
+  /** Determines whether or not the <code>CalendarIntervalTrigger</code> will occur again. */
   @Override
   public boolean mayFireAgain() {
     return (getNextFireTime() != null);

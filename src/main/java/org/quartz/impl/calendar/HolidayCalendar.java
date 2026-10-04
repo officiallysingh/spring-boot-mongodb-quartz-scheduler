@@ -104,14 +104,21 @@ public class HolidayCalendar extends BaseCalendar implements Calendar, Serializa
   }
 
   /**
-   * Add the given Date to the list of excluded days. Only the month, day and year of the returned
-   * dates are significant.
+   * Adds the given instant's calendar day to the list of excluded days. Only the month, day, and
+   * year, in this calendar's time zone, are significant.
+   *
+   * @param excludedDate the day to exclude
    */
   public void addExcludedDate(Instant excludedDate) {
     Instant date = getStartOfDayJavaCalendar(excludedDate.toEpochMilli()).toInstant();
     this.dates.add(date);
   }
 
+  /**
+   * Removes the given instant's calendar day from the list of excluded days.
+   *
+   * @param dateToRemove the day to include again
+   */
   public void removeExcludedDate(Instant dateToRemove) {
     Instant date = getStartOfDayJavaCalendar(dateToRemove.toEpochMilli()).toInstant();
     dates.remove(date);

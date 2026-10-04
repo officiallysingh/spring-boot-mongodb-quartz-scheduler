@@ -26,9 +26,17 @@ import org.springframework.core.env.Environment;
 import org.springframework.util.StringUtils;
 
 /**
- * Auto-configuration for this Quartz fork. The job store uses the application's {@link MongoClient}
- * when present, otherwise Spring Data {@code MongoDatabaseFactory}. It does not take a separate
- * Quartz URI.
+ * Auto-configuration for the MongoDB Quartz scheduler.
+ *
+ * <p>Registers a {@link QuartzSchedulerFactoryBean} when no {@link Scheduler} or factory bean is
+ * already defined, and when {@code quartz.scheduler.enabled} is missing or {@code true}. The job
+ * store uses the application's {@link MongoClient} when one is present. Otherwise it uses the
+ * database from Spring Data's {@code MongoDatabaseFactory}. It does not open a second client from a
+ * Quartz-specific URI.
+ *
+ * <p>{@link JobDetail}, {@link Trigger}, {@link Calendar}, and {@link SchedulerPlugin} beans are
+ * registered on that scheduler. Each {@link QuartzSchedulerCustomizer} runs after those properties
+ * are applied and can replace them.
  */
 @AutoConfiguration(
     afterName = {"org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration"})
@@ -37,6 +45,25 @@ import org.springframework.util.StringUtils;
 @EnableConfigurationProperties(QuartzProperties.class)
 public class QuartzAutoConfiguration {
 
+  /**
+   * Builds the scheduler factory from {@link QuartzProperties} and the application's MongoDB
+   * client.
+   *
+   * @param properties scheduler settings under {@code quartz.scheduler}
+   * @param mongoClients the application's {@link MongoClient}, when one exists
+   * @param customizers callbacks applied after the factory is populated
+   * @param jobDetails job definitions to register, in {@link org.springframework.core.Ordered}
+   *     order
+   * @param calendars calendars to register, keyed by calendar name
+   * @param triggers triggers to schedule, in {@link org.springframework.core.Ordered} order
+   * @param schedulerPlugins plugins to install, keyed by bean name
+   * @param applicationContext context used to autowire jobs and to find a {@code
+   *     MongoDatabaseFactory}
+   * @param environment source of {@code spring.mongodb.database} and the Mongo URI
+   * @return a factory bean that starts the scheduler with the application
+   * @throws IllegalStateException if neither a {@link MongoClient} nor a {@code
+   *     MongoDatabaseFactory} is available
+   */
   @Bean
   @ConditionalOnMissingBean({Scheduler.class, QuartzSchedulerFactoryBean.class})
   QuartzSchedulerFactoryBean quartzScheduler(
@@ -76,10 +103,30 @@ public class QuartzAutoConfiguration {
     return factoryBean;
   }
 
+  /**
+   * Maps {@link QuartzProperties} onto Quartz configuration keys, resolving the database name from
+   * the environment.
+   *
+   * @param properties typed scheduler settings
+   * @param environment source of the Mongo database name and URI
+   * @return properties passed to {@link StdSchedulerFactory#initialize(java.util.Properties)}
+   * @see #buildQuartzProperties(QuartzProperties, Environment, MongoDatabase)
+   */
   static Properties buildQuartzProperties(QuartzProperties properties, Environment environment) {
     return buildQuartzProperties(properties, environment, null);
   }
 
+  /**
+   * Maps {@link QuartzProperties} onto Quartz configuration keys. Entries in {@link
+   * QuartzProperties#getProperties()} are applied first. Typed fields, including durations,
+   * overwrite the same keys.
+   *
+   * @param properties typed scheduler settings
+   * @param environment used to resolve the database name when {@code mongoDatabase} is absent
+   * @param mongoDatabase database already chosen from a {@code MongoDatabaseFactory}, or {@code
+   *     null}
+   * @return properties passed to {@link StdSchedulerFactory#initialize(java.util.Properties)}
+   */
   static Properties buildQuartzProperties(
       QuartzProperties properties, Environment environment, MongoDatabase mongoDatabase) {
     Properties quartz = new Properties();
@@ -147,10 +194,25 @@ public class QuartzAutoConfiguration {
     return "test";
   }
 
+  /**
+   * Converts a configured duration to milliseconds.
+   *
+   * @param duration the configured value, or {@code null} when the property was not set
+   * @param fallbackMillis value used when {@code duration} is {@code null}
+   * @return {@code duration} in milliseconds, or {@code fallbackMillis}
+   */
   static long toMillis(Duration duration, long fallbackMillis) {
     return duration != null ? duration.toMillis() : fallbackMillis;
   }
 
+  /**
+   * Returns the database from the first Spring Data {@code MongoDatabaseFactory} bean, or {@code
+   * null} when that type is absent or no bean of it exists.
+   *
+   * @param context the application context, or {@code null}
+   * @return the database the factory is bound to, or {@code null}
+   * @throws IllegalStateException if a factory bean exists but its database cannot be read
+   */
   static MongoDatabase resolveMongoDatabase(ApplicationContext context) {
     if (context == null) {
       return null;

@@ -27,10 +27,22 @@ public class QuartzMetrics implements MeterBinder {
   /** Last successfully read execution count, so the counter never moves backwards. */
   private final AtomicLong jobsExecuted = new AtomicLong();
 
+  /**
+   * Binds meters for {@code scheduler} with no extra tags.
+   *
+   * @param scheduler the scheduler to scrape; must not be {@code null}
+   */
   public QuartzMetrics(Scheduler scheduler) {
     this(scheduler, Tags.empty());
   }
 
+  /**
+   * Binds meters for {@code scheduler}. A {@code scheduler} tag holding {@link
+   * Scheduler#getSchedulerName()} is added to {@code tags}.
+   *
+   * @param scheduler the scheduler to scrape; must not be {@code null}
+   * @param tags extra tags applied to every meter; must not be {@code null}
+   */
   public QuartzMetrics(Scheduler scheduler, Iterable<Tag> tags) {
     Assert.notNull(scheduler, "'scheduler' must not be null");
     Assert.notNull(tags, "'tags' must not be null");
@@ -38,6 +50,14 @@ public class QuartzMetrics implements MeterBinder {
     this.tags = tags;
   }
 
+  /**
+   * Registers {@code quartz.scheduler.jobs.executed}, {@code quartz.scheduler.jobs.executing},
+   * {@code quartz.scheduler.threads}, and {@code quartz.scheduler.running}. Gauges report {@link
+   * Double#NaN} when the scheduler state cannot be read. The executed-job counter stays at the last
+   * successful reading so a failed scrape does not move it backwards.
+   *
+   * @param registry the registry that receives the meters
+   */
   @Override
   public void bindTo(MeterRegistry registry) {
     Tags meterTags = Tags.concat(this.tags, "scheduler", schedulerName());

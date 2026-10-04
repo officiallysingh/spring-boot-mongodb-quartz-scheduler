@@ -60,10 +60,22 @@ public class QuartzJobMetrics implements MeterBinder {
   /** In-flight executions, keyed by fire instance id. */
   private final Map<String, LongTaskTimer.Sample> activeExecutions = new ConcurrentHashMap<>();
 
+  /**
+   * Records per-job meters for {@code scheduler} with no extra tags.
+   *
+   * @param scheduler the scheduler the listeners are added to; must not be {@code null}
+   */
   public QuartzJobMetrics(Scheduler scheduler) {
     this(scheduler, Tags.empty());
   }
 
+  /**
+   * Records per-job meters for {@code scheduler}. Job meters are also tagged with {@code group} and
+   * {@code job}. Misfire meters are tagged with {@code group} and {@code trigger}.
+   *
+   * @param scheduler the scheduler the listeners are added to; must not be {@code null}
+   * @param tags extra tags applied to every meter; must not be {@code null}
+   */
   public QuartzJobMetrics(Scheduler scheduler, Iterable<Tag> tags) {
     Assert.notNull(scheduler, "'scheduler' must not be null");
     Assert.notNull(tags, "'tags' must not be null");

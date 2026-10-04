@@ -168,7 +168,7 @@ public class DateBuilder {
     return new DateBuilder(zoneId);
   }
 
-  /** Build the Date defined by this builder instance. */
+  /** Build the {@link Instant} defined by this builder instance. */
   public Instant build() {
     var useZoneId = (zoneId != null) ? zoneId : ZoneId.systemDefault();
 
@@ -187,7 +187,7 @@ public class DateBuilder {
     return (zdt.toInstant());
   }
 
-  /** Set the hour (0-23) for the Date that will be built by this builder. */
+  /** Set the hour (0-23) for the {@link Instant} that will be built by this builder. */
   public DateBuilder atHourOfDay(int atHour) {
     validateHour(atHour);
 
@@ -195,7 +195,7 @@ public class DateBuilder {
     return this;
   }
 
-  /** Set the minute (0-59) for the Date that will be built by this builder. */
+  /** Set the minute (0-59) for the {@link Instant} that will be built by this builder. */
   public DateBuilder atMinute(int atMinute) {
     validateMinute(atMinute);
 
@@ -204,8 +204,8 @@ public class DateBuilder {
   }
 
   /**
-   * Set the second (0-59) for the Date that will be built by this builder, and truncate the
-   * milliseconds to 000.
+   * Set the second (0-59) for the {@link Instant} that will be built by this builder, and truncate
+   * the milliseconds to 000.
    */
   public DateBuilder atSecond(int atSecond) {
     validateSecond(atSecond);
@@ -214,6 +214,15 @@ public class DateBuilder {
     return this;
   }
 
+  /**
+   * Sets the hour, minute, and second of the {@link Instant} this builder will produce. The
+   * nanosecond field of the result is zero.
+   *
+   * @param atHour hour of day, 0-23
+   * @param atMinute minute, 0-59
+   * @param atSecond second, 0-59
+   * @return this builder
+   */
   public DateBuilder atHourMinuteAndSecond(int atHour, int atMinute, int atSecond) {
     validateHour(atHour);
     validateMinute(atMinute);
@@ -225,7 +234,7 @@ public class DateBuilder {
     return this;
   }
 
-  /** Set the day of month (1-31) for the Date that will be built by this builder. */
+  /** Set the day of month (1-31) for the {@link Instant} that will be built by this builder. */
   public DateBuilder onDay(int onDay) {
     validateDayOfMonth(onDay);
 
@@ -233,7 +242,7 @@ public class DateBuilder {
     return this;
   }
 
-  /** Set the month (1-12) for the Date that will be built by this builder. */
+  /** Set the month (1-12) for the {@link Instant} that will be built by this builder. */
   public DateBuilder inMonth(int inMonth) {
     validateMonth(inMonth);
 
@@ -250,6 +259,13 @@ public class DateBuilder {
     return this;
   }
 
+  /**
+   * Sets the month and day of month of the {@link Instant} this builder will produce.
+   *
+   * @param inMonth month, 1-12
+   * @param onDay day of month, 1-31
+   * @return this builder
+   */
   public DateBuilder inMonthOnDay(int inMonth, int onDay) {
     validateMonth(inMonth);
     validateDayOfMonth(onDay);
@@ -259,6 +275,14 @@ public class DateBuilder {
     return this;
   }
 
+  /**
+   * Sets the month and day of month of the {@link Instant} this builder will produce.
+   *
+   * @param inMonth the month
+   * @param onDay day of month, 1-31
+   * @return this builder
+   * @throws IllegalArgumentException if {@code inMonth} is {@code null}
+   */
   public DateBuilder inMonthOnDay(Month inMonth, int onDay) {
     if (inMonth == null) {
       throw new IllegalArgumentException("Month must be specified.");
@@ -266,7 +290,7 @@ public class DateBuilder {
     return inMonthOnDay(inMonth.getValue(), onDay);
   }
 
-  /** Set the year for the Date that will be built by this builder. */
+  /** Set the year for the {@link Instant} that will be built by this builder. */
   public DateBuilder inYear(int inYear) {
     validateYear(inYear);
 
@@ -492,13 +516,13 @@ public class DateBuilder {
   }
 
   /**
-   * Returns a date that is rounded to the next even hour after the current time.
+   * Returns an {@link Instant} that is rounded to the next even hour after the current time.
    *
    * <p>For example a current time of 08:13:54 would result in a date with the time of 09:00:00. If
    * the date's time is in the 23rd hour, the date's 'day' will be promoted, and the time will be
    * set to 00:00:00.
    *
-   * @return the new rounded date
+   * @return the new rounded {@link Instant}
    */
   public static Instant evenHourDateAfterNow() {
     return evenHourDateAfterNow(Clock.systemDefaultZone());
@@ -509,14 +533,14 @@ public class DateBuilder {
   }
 
   /**
-   * Returns a date that is rounded to the next even hour above the given date.
+   * Returns an {@link Instant} that is rounded to the next even hour above the given date.
    *
    * <p>For example an input date with a time of 08:13:54 would result in a date with the time of
    * 09:00:00. If the date's time is in the 23rd hour, the date's 'day' will be promoted, and the
    * time will be set to 00:00:00.
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
-   * @return the new rounded date
+   * @param date the {@link Instant} to round, if <code>null</code> the current time will be used
+   * @return the new rounded {@link Instant}
    */
   public static Instant evenHourDate(Instant date) {
     return evenHourDate(date, Clock.systemDefaultZone());
@@ -531,13 +555,13 @@ public class DateBuilder {
   }
 
   /**
-   * Returns a date that is rounded to the previous even hour below the given date.
+   * Returns an {@link Instant} that is rounded to the previous even hour below the given date.
    *
    * <p>For example an input date with a time of 08:13:54 would result in a date with the time of
    * 08:00:00.
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
-   * @return the new rounded date
+   * @param date the {@link Instant} to round, if <code>null</code> the current time will be used
+   * @return the new rounded {@link Instant}
    */
   public static Instant evenHourDateBefore(Instant date) {
     return evenHourDateBefore(date, Clock.systemDefaultZone());
@@ -551,12 +575,12 @@ public class DateBuilder {
   }
 
   /**
-   * Returns a date that is rounded to the next even minute after the current time.
+   * Returns an {@link Instant} that is rounded to the next even minute after the current time.
    *
    * <p>For example a current time of 08:13:54 would result in a date with the time of 08:14:00. If
    * the date's time is in the 59th minute, then the hour (and possibly the day) will be promoted.
    *
-   * @return the new rounded date
+   * @return the new rounded {@link Instant}
    */
   public static Instant evenMinuteDateAfterNow() {
     return evenMinuteDateAfterNow(Clock.systemDefaultZone());
@@ -567,14 +591,14 @@ public class DateBuilder {
   }
 
   /**
-   * Returns a date that is rounded to the next even minute above the given date.
+   * Returns an {@link Instant} that is rounded to the next even minute above the given date.
    *
    * <p>For example an input date with a time of 08:13:54 would result in a date with the time of
    * 08:14:00. If the date's time is in the 59th minute, then the hour (and possibly the day) will
    * be promoted.
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
-   * @return the new rounded date
+   * @param date the {@link Instant} to round, if <code>null</code> the current time will be used
+   * @return the new rounded {@link Instant}
    */
   public static Instant evenMinuteDate(Instant date) {
     return evenMinuteDate(date, Clock.systemDefaultZone());
@@ -589,13 +613,13 @@ public class DateBuilder {
   }
 
   /**
-   * Returns a date that is rounded to the previous even minute below the given date.
+   * Returns an {@link Instant} that is rounded to the previous even minute below the given date.
    *
    * <p>For example an input date with a time of 08:13:54 would result in a date with the time of
    * 08:13:00.
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
-   * @return the new rounded date
+   * @param date the {@link Instant} to round, if <code>null</code> the current time will be used
+   * @return the new rounded {@link Instant}
    */
   public static Instant evenMinuteDateBefore(Instant date) {
     return evenMinuteDateBefore(date, Clock.systemDefaultZone());
@@ -609,9 +633,9 @@ public class DateBuilder {
   }
 
   /**
-   * Returns a date that is rounded to the next even second after the current time.
+   * Returns an {@link Instant} that is rounded to the next even second after the current time.
    *
-   * @return the new rounded date
+   * @return the new rounded {@link Instant}
    */
   public static Instant evenSecondDateAfterNow() {
     return evenSecondDateAfterNow(Clock.systemDefaultZone());
@@ -622,10 +646,10 @@ public class DateBuilder {
   }
 
   /**
-   * Returns a date that is rounded to the next even second above the given date.
+   * Returns an {@link Instant} that is rounded to the next even second above the given date.
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
-   * @return the new rounded date
+   * @param date the {@link Instant} to round, if <code>null</code> the current time will be used
+   * @return the new rounded {@link Instant}
    */
   public static Instant evenSecondDate(Instant date) {
     return evenSecondDate(date, Clock.systemDefaultZone());
@@ -640,13 +664,13 @@ public class DateBuilder {
   }
 
   /**
-   * Returns a date that is rounded to the previous even second below the given date.
+   * Returns an {@link Instant} that is rounded to the previous even second below the given date.
    *
    * <p>For example an input date with a time of 08:13:54.341 would result in a date with the time
    * of 08:13:54.000.
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
-   * @return the new rounded date
+   * @param date the {@link Instant} to round, if <code>null</code> the current time will be used
+   * @return the new rounded {@link Instant}
    */
   public static Instant evenSecondDateBefore(Instant date) {
     return evenSecondDateBefore(date, Clock.systemDefaultZone());
@@ -660,7 +684,7 @@ public class DateBuilder {
   }
 
   /**
-   * Returns a date that is rounded to the next even multiple of the given minute.
+   * Returns an {@link Instant} that is rounded to the next even multiple of the given minute.
    *
    * <p>For example an input date with a time of 08:13:54, and an input minute-base of 5 would
    * result in a date with the time of 08:15:00. The same input date with an input minute-base of 10
@@ -739,9 +763,9 @@ public class DateBuilder {
    * </tr>
    * </table>
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
+   * @param date the {@link Instant} to round, if <code>null</code> the current time will be used
    * @param minuteBase the base-minute to set the time on
-   * @return the new rounded date
+   * @return the new rounded {@link Instant}
    * @see #nextGivenSecondDate(Instant, int)
    */
   public static Instant nextGivenMinuteDate(Instant date, int minuteBase) {
@@ -774,14 +798,14 @@ public class DateBuilder {
   }
 
   /**
-   * Returns a date that is rounded to the next even multiple of the given second.
+   * Returns an {@link Instant} that is rounded to the next even multiple of the given second.
    *
    * <p>The rules for calculating the second are the same as those for calculating the minute in the
    * method <code>getNextGivenMinuteDate(..)</code>.
    *
-   * @param date the Date to round, if <code>null</code> the current time will be used
+   * @param date the {@link Instant} to round, if <code>null</code> the current time will be used
    * @param secondBase the base-second to set the time on
-   * @return the new rounded date
+   * @return the new rounded {@link Instant}
    * @see #nextGivenMinuteDate(Instant, int)
    */
   public static Instant nextGivenSecondDate(Instant date, int secondBase) {

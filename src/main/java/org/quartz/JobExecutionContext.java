@@ -132,8 +132,19 @@ public interface JobExecutionContext {
    */
   Instant getScheduledFireTime();
 
+  /**
+   * Returns the previous time at which the trigger fired. {@code null} if this is the first firing.
+   *
+   * @return the previous fire time, or {@code null}
+   */
   Instant getPreviousFireTime();
 
+  /**
+   * Returns the next time at which the trigger is scheduled to fire. {@code null} if the trigger
+   * will not fire again.
+   *
+   * @return the next fire time, or {@code null}
+   */
   Instant getNextFireTime();
 
   /**

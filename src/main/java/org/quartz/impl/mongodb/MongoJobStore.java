@@ -54,19 +54,30 @@ import org.quartz.spi.TriggerFiredResult;
 /**
  * Persistent, cluster-capable {@link JobStore} backed by MongoDB.
  *
- * <p>Jobs and triggers are BSON documents ({@code jobClass} is a string FQCN, fire times are {@link
- * Instant}). Cluster identity is a per-process lease with TTL, not a durable instance id.
+ * <p>Jobs, triggers, calendars, paused groups, leases, and the cluster lock are BSON documents.
+ * {@code jobClass} is stored as a fully qualified class name. Fire times are {@link Instant} values
+ * written as BSON dates. Job data is a document of plain values, not a Java-serialized {@code
+ * JobDataMap}. Acquire is a {@code findOneAndUpdate}. Unique indexes keep one document per job and
+ * per trigger.
  *
- * <p>Inject an existing {@link MongoClient} (Spring Boot) via {@link #setMongoClient(MongoClient)}
- * and this store will not close it on shutdown. Otherwise it creates a client from {@code
- * mongoUri}.
+ * <p>Cluster identity is a per-process lease. An empty or {@code AUTO} instance id becomes a new
+ * UUID in {@link #initialize}. Recovery looks for an expired lease. It does not look up a hostname
+ * that a new process reused. Pass an existing {@link MongoClient} through {@link
+ * #setMongoClient(MongoClient)}, or a {@link MongoDatabase} through {@link
+ * #setMongoDatabase(MongoDatabase)}, and this store will not close that client on shutdown.
+ * Otherwise {@link #initialize} creates a client from {@code mongoUri}.
  */
 @Slf4j
 @Getter
 public class MongoJobStore implements JobStore {
 
+  /** URI used when this store creates its own client and {@code mongoUri} was not set. */
   public static final String DEFAULT_URI = "mongodb://localhost:27017";
+
+  /** Database used when {@code dbName} was not set and no {@link MongoDatabase} was injected. */
   public static final String DEFAULT_DB = "quartz";
+
+  /** Prefix of the job, trigger, calendar, lease, and lock collections when none is configured. */
   public static final String DEFAULT_COLLECTION_PREFIX = "qrtz_";
 
   private static final AtomicLong FIRE_IDS = new AtomicLong(System.currentTimeMillis());
@@ -101,24 +112,54 @@ public class MongoJobStore implements JobStore {
   private ClassLoader jobClassLoader;
   private ClusterManager clusterManager;
 
+  /**
+   * Uses an existing client. The store does not close it on {@link #shutdown()}.
+   *
+   * @param mongoClient the application's client
+   */
   public void setMongoClient(MongoClient mongoClient) {
     this.mongoClient = mongoClient;
     this.ownsClient = false;
   }
 
+  /**
+   * Uses an existing database and does not close its client on {@link #shutdown()}. The database
+   * name comes from this handle, not from {@link #setDbName(String)}.
+   *
+   * @param mongoDatabase the database that holds the Quartz collections
+   */
   public void setMongoDatabase(MongoDatabase mongoDatabase) {
     this.mongoDatabase = mongoDatabase;
     this.ownsClient = false;
   }
 
+  /**
+   * Enables or disables clustering. Named for the Quartz property {@code
+   * org.quartz.jobStore.isClustered}.
+   *
+   * @param clustered {@code true} to take leases and the cluster lock
+   * @see #setClustered(boolean)
+   */
   public void setIsClustered(boolean clustered) {
     this.clustered = clustered;
   }
 
+  /**
+   * Enables or disables clustering. Same value as {@link #setIsClustered(boolean)}, exposed under
+   * the JavaBean name {@code clustered}.
+   *
+   * @param clustered {@code true} to take leases and the cluster lock
+   */
   public void setClustered(boolean clustered) {
     this.clustered = clustered;
   }
 
+  /**
+   * Sets how often this node refreshes its scheduler lease. Must be zero or positive.
+   *
+   * @param clusterCheckinInterval the check-in period
+   * @throws IllegalArgumentException if {@code clusterCheckinInterval} is {@code null} or negative
+   */
   public void setClusterCheckinInterval(Duration clusterCheckinInterval) {
     if (clusterCheckinInterval == null || clusterCheckinInterval.isNegative()) {
       throw new IllegalArgumentException("clusterCheckinInterval must be >= 0");
@@ -127,9 +168,12 @@ public class MongoJobStore implements JobStore {
   }
 
   /**
-   * How long {@code withLock} waits for {@code TRIGGER_ACCESS}. Default is the lock expiry window
-   * (at least 30s) so a live node can wait out another node's critical section or steal an expired
-   * lock. Tests may shorten this.
+   * Sets how long a cluster operation waits for the {@code TRIGGER_ACCESS} lock. The default is the
+   * lock expiry window, at least 30 seconds, so a live node can wait out another node's critical
+   * section or take an expired lock. A {@code null} value restores that default.
+   *
+   * @param clusterLockWait the wait, or {@code null} for the default
+   * @throws IllegalArgumentException if {@code clusterLockWait} is negative
    */
   public void setClusterLockWait(Duration clusterLockWait) {
     if (clusterLockWait != null && clusterLockWait.isNegative()) {
@@ -138,6 +182,12 @@ public class MongoJobStore implements JobStore {
     this.clusterLockWait = clusterLockWait;
   }
 
+  /**
+   * Sets how late a trigger may be before it is treated as a misfire. Must be greater than zero.
+   *
+   * @param misfireThreshold the lateness allowed before a misfire
+   * @throws IllegalArgumentException if {@code misfireThreshold} is {@code null}, zero, or negative
+   */
   public void setMisfireThreshold(Duration misfireThreshold) {
     if (misfireThreshold == null || misfireThreshold.isZero() || misfireThreshold.isNegative()) {
       throw new IllegalArgumentException("misfireThreshold must be > 0");
@@ -145,6 +195,12 @@ public class MongoJobStore implements JobStore {
     this.misfireThreshold = misfireThreshold;
   }
 
+  /**
+   * Sets the loader used to resolve stored job class names. When {@code null}, the store uses its
+   * own class loader.
+   *
+   * @param jobClassLoader the application class loader, or {@code null}
+   */
   public void setJobClassLoader(ClassLoader jobClassLoader) {
     this.jobClassLoader = jobClassLoader;
   }
@@ -159,6 +215,12 @@ public class MongoJobStore implements JobStore {
     this.instanceName = schedName;
   }
 
+  /**
+   * Accepts the scheduler's pool size. This store does not use it; concurrency is enforced by the
+   * thread pool before triggers are acquired.
+   *
+   * @param poolSize the scheduler thread-pool size; ignored
+   */
   @Override
   public void setThreadPoolSize(int poolSize) {
     // unused — JobStore SPI

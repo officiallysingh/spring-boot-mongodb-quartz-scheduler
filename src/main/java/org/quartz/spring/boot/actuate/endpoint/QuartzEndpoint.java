@@ -40,9 +40,12 @@ import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 import org.springframework.util.Assert;
 
 /**
- * {@link Endpoint} exposing the scheduler's jobs and triggers. Adapted from Spring Boot's {@code
- * QuartzEndpoint} for this fork, whose fire times are {@link Instant} and whose {@link
- * SimpleTrigger} interval is a {@link Duration}; intervals are still reported in milliseconds.
+ * {@link Endpoint} exposing the scheduler's jobs and triggers, at id {@code quartz}.
+ *
+ * <p>Adapted from Spring Boot's {@code QuartzEndpoint}. Fire times in the payload are {@link
+ * Instant} values. A {@link SimpleTrigger} interval is a {@link Duration} on the scheduler API and
+ * is still reported here in milliseconds. Job and trigger data maps are passed through a {@link
+ * Sanitizer} unless the caller asks for unsanitized values.
  */
 @Endpoint(id = "quartz")
 public class QuartzEndpoint {
@@ -56,13 +59,25 @@ public class QuartzEndpoint {
 
   private final Sanitizer sanitizer;
 
+  /**
+   * Creates an endpoint that reads {@code scheduler}.
+   *
+   * @param scheduler the scheduler to expose; must not be {@code null}
+   * @param sanitizingFunctions rules applied to job and trigger data values before they are
+   *     returned
+   */
   public QuartzEndpoint(Scheduler scheduler, Iterable<SanitizingFunction> sanitizingFunctions) {
     Assert.notNull(scheduler, "'scheduler' must not be null");
     this.scheduler = scheduler;
     this.sanitizer = new Sanitizer(sanitizingFunctions);
   }
 
-  /** Returns the available job and trigger group names. */
+  /**
+   * Returns the available job and trigger group names.
+   *
+   * @return group names currently known to the scheduler
+   * @throws SchedulerException if the scheduler cannot list groups
+   */
   @ReadOperation
   public QuartzDescriptor quartzReport() throws SchedulerException {
     return new QuartzDescriptor(
@@ -70,7 +85,12 @@ public class QuartzEndpoint {
         new GroupNamesDescriptor(this.scheduler.getTriggerGroupNames()));
   }
 
-  /** Returns the available job names, identified by group name. */
+  /**
+   * Returns the available job names, identified by group name.
+   *
+   * @return a map of group name to that group's job names
+   * @throws SchedulerException if the scheduler cannot list jobs
+   */
   public QuartzGroupsDescriptor quartzJobGroups() throws SchedulerException {
     Map<String, Object> result = new LinkedHashMap<>();
     for (String groupName : this.scheduler.getJobGroupNames()) {
@@ -83,7 +103,13 @@ public class QuartzEndpoint {
     return new QuartzGroupsDescriptor(result);
   }
 
-  /** Returns the available trigger names, identified by group name. */
+  /**
+   * Returns the available trigger names, identified by group name. Each group also reports whether
+   * it is paused.
+   *
+   * @return a map of group name to that group's pause flag and trigger names
+   * @throws SchedulerException if the scheduler cannot list triggers
+   */
   public QuartzGroupsDescriptor quartzTriggerGroups() throws SchedulerException {
     Map<String, Object> result = new LinkedHashMap<>();
     Set<String> pausedTriggerGroups = this.scheduler.getPausedTriggerGroups();
@@ -101,8 +127,11 @@ public class QuartzEndpoint {
   }
 
   /**
-   * Returns a summary of the jobs group with the specified name, or {@code null} if no such group
-   * exists.
+   * Returns a summary of the jobs in the named group, or {@code null} if no such group exists.
+   *
+   * @param group the job group name
+   * @return one summary per job in the group, or {@code null} when the group is unknown
+   * @throws SchedulerException if the scheduler cannot read the group
    */
   public QuartzJobGroupSummaryDescriptor quartzJobGroupSummary(String group)
       throws SchedulerException {
@@ -127,8 +156,12 @@ public class QuartzEndpoint {
   }
 
   /**
-   * Returns a summary of the triggers group with the specified name, or {@code null} if no such
-   * group exists.
+   * Returns a summary of the triggers in the named group, grouped by trigger type, or {@code null}
+   * if no such group exists. Summaries include each trigger's next fire time as an {@link Instant}.
+   *
+   * @param group the trigger group name
+   * @return the group summary, or {@code null} when the group is unknown
+   * @throws SchedulerException if the scheduler cannot read the group
    */
   public QuartzTriggerGroupSummaryDescriptor quartzTriggerGroupSummary(String group)
       throws SchedulerException {
@@ -159,8 +192,15 @@ public class QuartzEndpoint {
   }
 
   /**
-   * Returns the details of the job identified with the given group name and job name, or {@code
-   * null} if such job does not exist.
+   * Returns the details of the job identified by group and name, or {@code null} if that job does
+   * not exist. The job data map is passed through the endpoint sanitizer unless {@code
+   * showUnsanitized} is {@code true}.
+   *
+   * @param groupName the job group
+   * @param jobName the job name
+   * @param showUnsanitized whether to include raw job data values
+   * @return the job details, or {@code null} when the job is absent
+   * @throws SchedulerException if the scheduler cannot read the job
    */
   public QuartzJobDetailsDescriptor quartzJob(
       String groupName, String jobName, boolean showUnsanitized) throws SchedulerException {
@@ -177,8 +217,14 @@ public class QuartzEndpoint {
   }
 
   /**
-   * Triggers (executes now) the job identified by the given group and job name, or returns {@code
-   * null} if the job does not exist.
+   * Fires the job identified by group and name immediately, or returns {@code null} if the job does
+   * not exist. The returned {@code triggerTime} is the instant {@link Scheduler#triggerJob} was
+   * called, which is not a stored trigger's next fire time.
+   *
+   * @param groupName the job group
+   * @param jobName the job name
+   * @return a description of the job that was fired, or {@code null} when the job is absent
+   * @throws SchedulerException if the job cannot be fired
    */
   public QuartzJobTriggerDescriptor triggerQuartzJob(String groupName, String jobName)
       throws SchedulerException {
@@ -208,8 +254,16 @@ public class QuartzEndpoint {
   }
 
   /**
-   * Returns the details of the trigger identified by the given group name and trigger name, or
-   * {@code null} if such trigger does not exist.
+   * Returns the details of the trigger identified by group and name, or {@code null} if that
+   * trigger does not exist. Fire times are {@link Instant} values. A {@link SimpleTrigger} interval
+   * is reported in milliseconds. The trigger data map is sanitized unless {@code showUnsanitized}
+   * is {@code true}.
+   *
+   * @param groupName the trigger group
+   * @param triggerName the trigger name
+   * @param showUnsanitized whether to include raw trigger data values
+   * @return the trigger details, or {@code null} when the trigger is absent
+   * @throws SchedulerException if the scheduler cannot read the trigger
    */
   Map<String, Object> quartzTrigger(String groupName, String triggerName, boolean showUnsanitized)
       throws SchedulerException {
@@ -379,6 +433,11 @@ public class QuartzEndpoint {
       return this.className;
     }
 
+    /**
+     * Returns the instant at which the on-demand fire was requested.
+     *
+     * @return the time {@link Scheduler#triggerJob} was called
+     */
     public Instant getTriggerTime() {
       return this.triggerTime;
     }
@@ -476,6 +535,10 @@ public class QuartzEndpoint {
       return this.triggers;
     }
 
+    /**
+     * Trigger summaries in one group, split by type. Each map is keyed by trigger name. A type with
+     * no triggers is an empty map.
+     */
     public static final class Triggers {
 
       private final Map<String, Object> cron;

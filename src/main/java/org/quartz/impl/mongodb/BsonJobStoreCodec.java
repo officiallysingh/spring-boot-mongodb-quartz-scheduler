@@ -39,16 +39,40 @@ import org.quartz.impl.triggers.DailyTimeIntervalTriggerImpl;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
 import org.quartz.spi.OperableTrigger;
 
-/** BSON documents for jobs, triggers, and calendars — no Java serialization. */
+/**
+ * Encodes jobs, triggers, and calendars as BSON documents without Java serialization.
+ *
+ * <p>A job document stores {@code jobClass} as a fully qualified class name. Fire times are written
+ * with {@link Date#from(Instant)} so MongoDB stores them as BSON dates, and they are read back as
+ * {@link Instant}. A {@link SimpleTrigger} repeat interval is stored as a {@link Duration}. Job
+ * data is a document of plain values. Unknown trigger types are rejected rather than written as a
+ * serialized object.
+ *
+ * <p>Trigger documents set {@code type} to one of {@link #TYPE_SIMPLE}, {@link #TYPE_CRON}, {@link
+ * #TYPE_CALENDAR_INTERVAL}, or {@link #TYPE_DAILY_TIME_INTERVAL}.
+ */
 final class BsonJobStoreCodec {
 
+  /** {@code type} value for a {@link SimpleTrigger}. */
   static final String TYPE_SIMPLE = "simple";
+
+  /** {@code type} value for a {@link CronTrigger}. */
   static final String TYPE_CRON = "cron";
+
+  /** {@code type} value for a {@link CalendarIntervalTrigger}. */
   static final String TYPE_CALENDAR_INTERVAL = "calendarInterval";
+
+  /** {@code type} value for a {@link DailyTimeIntervalTrigger}. */
   static final String TYPE_DAILY_TIME_INTERVAL = "dailyTimeInterval";
 
   private BsonJobStoreCodec() {}
 
+  /**
+   * Writes the identity, durability, class name, and job data of {@code job}.
+   *
+   * @param job the job to encode
+   * @return a document without a Mongo {@code _id}
+   */
   static Document jobBody(JobDetail job) {
     JobKey key = job.getKey();
     Document doc = new Document();
@@ -62,6 +86,14 @@ final class BsonJobStoreCodec {
     return doc;
   }
 
+  /**
+   * Rebuilds a job from a document produced by {@link #jobBody(JobDetail)}.
+   *
+   * @param doc the stored job document
+   * @param classLoader loader used to resolve {@code jobClass}, or {@code null} for this class's
+   *     loader
+   * @return the job detail
+   */
   static JobDetail toJob(Document doc, ClassLoader classLoader) {
     JobDetailImpl job = new JobDetailImpl();
     job.setName(doc.getString("name"));
@@ -77,6 +109,13 @@ final class BsonJobStoreCodec {
     return job;
   }
 
+  /**
+   * Appends trigger identity, fire times, and type-specific fields to {@code doc}.
+   *
+   * @param doc the document to fill
+   * @param trigger the trigger to encode
+   * @throws IllegalStateException if {@code trigger} is not a supported trigger type
+   */
   static void putTriggerBody(Document doc, OperableTrigger trigger) {
     doc.append("name", trigger.getKey().getName());
     doc.append("group", trigger.getKey().getGroup());
@@ -123,6 +162,15 @@ final class BsonJobStoreCodec {
     }
   }
 
+  /**
+   * Rebuilds a trigger from a document produced by {@link #putTriggerBody(Document,
+   * OperableTrigger)}.
+   *
+   * @param doc the stored trigger document
+   * @return the trigger
+   * @throws IllegalStateException if {@code type} is missing or the cron expression cannot be
+   *     parsed
+   */
   static OperableTrigger toTrigger(Document doc) {
     String type = doc.getString("type");
     if (type == null) {

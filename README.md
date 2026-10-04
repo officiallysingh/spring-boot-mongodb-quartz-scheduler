@@ -1,5 +1,13 @@
 # Scheduling jobs in Spring Boot with Quartz and MongoDB
 
+[![Java](https://img.shields.io/badge/java-21-blue.svg)](https://www.oracle.com/java/technologies/)
+[![Spring Boot](https://img.shields.io/badge/spring_boot-4.1.1-blue.svg)](https://spring.io/projects/spring-boot)
+[![Quartz Scheduler](https://img.shields.io/badge/quartz-scheduler-blue.svg)](https://www.quartz-scheduler.org/)
+[![Maven](https://img.shields.io/badge/maven-3.9.x-blue.svg)](https://maven.apache.org/)
+[![Docker](https://img.shields.io/badge/docker-compose-blue.svg)](https://www.docker.com/)
+[![Test Containers](https://img.shields.io/badge/testcontainers-latest-blue.svg)](https://testcontainers.com/)
+
+
 **One jar for Quartz on Spring Boot, persisted only in MongoDB.** It contains the scheduler, the MongoDB job store, the history plugins, the Spring Boot auto-configuration, and the Actuator health check, endpoint, and metrics. Requires **Java 21+**, **Spring Boot 4+**, and a MongoDB database the application already uses.
 
 You do not add `spring-boot-starter-quartz`, and you do not add `org.quartz-scheduler:quartz`. Those artifacts are the JDBC edition of the same packages. This jar already plays their part, with MongoDB as the only job store. Putting both on the classpath fails startup: two copies of `org.quartz`, and two Actuator endpoints with the id `quartz`.

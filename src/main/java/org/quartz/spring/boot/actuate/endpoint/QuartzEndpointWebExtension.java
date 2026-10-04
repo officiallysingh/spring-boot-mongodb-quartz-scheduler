@@ -20,8 +20,16 @@ import org.springframework.boot.actuate.endpoint.web.annotation.EndpointWebExten
 import org.springframework.context.annotation.ImportRuntimeHints;
 
 /**
- * {@link EndpointWebExtension @EndpointWebExtension} for the {@link QuartzEndpoint}, exposing
- * {@code /actuator/quartz/jobs}, {@code /actuator/quartz/triggers} and their group and item paths.
+ * Web extension for the {@link QuartzEndpoint}.
+ *
+ * <p>Exposes {@code /actuator/quartz/jobs} and {@code /actuator/quartz/triggers}, plus {@code
+ * /{group}} and {@code /{group}/{name}} under each. The first path selector must be {@code jobs} or
+ * {@code triggers}; any other value is a bad request. An unknown group or name is reported as not
+ * found.
+ *
+ * <p>A POST to {@code /actuator/quartz/jobs/{group}/{name}} with {@code state=running} fires that
+ * job now. Unsanitized job and trigger data is included only when {@link Show} allows it for the
+ * caller.
  */
 @EndpointWebExtension(endpoint = QuartzEndpoint.class)
 @ImportRuntimeHints(QuartzEndpointWebExtensionRuntimeHints.class)
@@ -33,12 +41,26 @@ public class QuartzEndpointWebExtension {
 
   private final Set<String> roles;
 
+  /**
+   * Creates the web extension.
+   *
+   * @param delegate the endpoint that reads the scheduler
+   * @param showValues when unsanitized data maps may be returned
+   * @param roles roles allowed to see unsanitized values; empty means every authenticated user
+   */
   public QuartzEndpointWebExtension(QuartzEndpoint delegate, Show showValues, Set<String> roles) {
     this.delegate = delegate;
     this.showValues = showValues;
     this.roles = roles;
   }
 
+  /**
+   * Lists job groups or trigger groups.
+   *
+   * @param jobsOrTriggers {@code jobs} or {@code triggers}
+   * @return the groups, or status 400 when the selector is neither
+   * @throws SchedulerException if the scheduler cannot list groups
+   */
   @ReadOperation
   public WebEndpointResponse<QuartzGroupsDescriptor> quartzJobOrTriggerGroups(
       @Selector String jobsOrTriggers) throws SchedulerException {
@@ -46,6 +68,15 @@ public class QuartzEndpointWebExtension {
         jobsOrTriggers, this.delegate::quartzJobGroups, this.delegate::quartzTriggerGroups);
   }
 
+  /**
+   * Returns one job group or one trigger group.
+   *
+   * @param jobsOrTriggers {@code jobs} or {@code triggers}
+   * @param group the group name
+   * @return the group summary, status 404 when the group is unknown, or status 400 when the
+   *     selector is neither {@code jobs} nor {@code triggers}
+   * @throws SchedulerException if the scheduler cannot read the group
+   */
   @ReadOperation
   public WebEndpointResponse<Object> quartzJobOrTriggerGroup(
       @Selector String jobsOrTriggers, @Selector String group) throws SchedulerException {
@@ -55,6 +86,17 @@ public class QuartzEndpointWebExtension {
         () -> this.delegate.quartzTriggerGroupSummary(group));
   }
 
+  /**
+   * Returns one job or one trigger. Data maps are unsanitized only when {@code showValues} allows
+   * it for {@code securityContext}.
+   *
+   * @param securityContext the caller, used to decide whether values are shown raw
+   * @param jobsOrTriggers {@code jobs} or {@code triggers}
+   * @param group the group name
+   * @param name the job or trigger name
+   * @return the details, status 404 when the item is unknown, or status 400 for a bad selector
+   * @throws SchedulerException if the scheduler cannot read the item
+   */
   @ReadOperation
   public WebEndpointResponse<Object> quartzJobOrTrigger(
       SecurityContext securityContext,
@@ -69,7 +111,17 @@ public class QuartzEndpointWebExtension {
         () -> this.delegate.quartzTrigger(group, name, showUnsanitized));
   }
 
-  /** Triggers a Quartz job, that is, runs it now, when {@code state} is {@code running}. */
+  /**
+   * Fires a job now when the first selector is {@code jobs} and {@code state} is {@code running}.
+   *
+   * @param jobs must be the literal {@code jobs}
+   * @param group the job group
+   * @param name the job name
+   * @param state must be {@code running}
+   * @return the fired-job description, status 404 when the job is unknown, or status 400 for any
+   *     other selector or state
+   * @throws SchedulerException if the job cannot be fired
+   */
   @WriteOperation
   public WebEndpointResponse<Object> triggerQuartzJob(
       @Selector String jobs, @Selector String group, @Selector String name, String state)
@@ -104,6 +156,7 @@ public class QuartzEndpointWebExtension {
     T get() throws SchedulerException;
   }
 
+  /** Registers reflection hints for the response types that Jackson binds on the native image. */
   static class QuartzEndpointWebExtensionRuntimeHints implements RuntimeHintsRegistrar {
 
     private final BindingReflectionHintsRegistrar bindingRegistrar =

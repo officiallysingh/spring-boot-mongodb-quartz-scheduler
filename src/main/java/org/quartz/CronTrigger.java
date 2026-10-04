@@ -175,6 +175,11 @@ public interface CronTrigger extends Trigger {
    */
   int MISFIRE_INSTRUCTION_DO_NOTHING = 2;
 
+  /**
+   * Returns the cron expression that defines this trigger's schedule.
+   *
+   * @return the cron expression string
+   */
   String getCronExpression();
 
   /**
@@ -183,6 +188,11 @@ public interface CronTrigger extends Trigger {
    */
   TimeZone getTimeZone();
 
+  /**
+   * Returns a readable summary of the parsed cron fields.
+   *
+   * @return the expression summary
+   */
   String getExpressionSummary();
 
   TriggerBuilder<CronTrigger> getTriggerBuilder();

@@ -90,8 +90,9 @@ public interface DailyTimeIntervalTrigger extends Trigger {
   int getRepeatCount();
 
   /**
-   * Get the time interval that will be added to the <code>DateIntervalTrigger</code>'s fire time
-   * (in the set repeat interval unit) in order to calculate the time of the next trigger repeat.
+   * Get the time interval that will be added to the <code>DailyTimeIntervalTrigger</code>'s fire
+   * time (in the set repeat interval unit) in order to calculate the time of the next trigger
+   * repeat.
    */
   int getRepeatInterval();
 
@@ -109,7 +110,7 @@ public interface DailyTimeIntervalTrigger extends Trigger {
    */
   Set<Integer> getDaysOfWeek();
 
-  /** Get the number of times the <code>DateIntervalTrigger</code> has already fired. */
+  /** Get the number of times the <code>DailyTimeIntervalTrigger</code> has already fired. */
   int getTimesTriggered();
 
   TriggerBuilder<DailyTimeIntervalTrigger> getTriggerBuilder();

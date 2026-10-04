@@ -26,12 +26,25 @@ public class QuartzHealthIndicator extends AbstractHealthIndicator {
 
   private final Scheduler scheduler;
 
+  /**
+   * Creates an indicator that reads {@code scheduler}.
+   *
+   * @param scheduler the scheduler to report; must not be {@code null}
+   */
   public QuartzHealthIndicator(Scheduler scheduler) {
     super("Quartz health check failed");
     Assert.notNull(scheduler, "'scheduler' must not be null");
     this.scheduler = scheduler;
   }
 
+  /**
+   * Fills {@code builder} from {@link Scheduler#getMetaData()} and the number of jobs currently
+   * executing. {@code runningSince} is omitted until the scheduler has been started.
+   *
+   * @param builder the health response to populate
+   * @throws Exception if the scheduler state cannot be read; the indicator then reports {@link
+   *     Status#DOWN}
+   */
   @Override
   protected void doHealthCheck(Health.Builder builder) throws Exception {
     SchedulerMetaData metaData = this.scheduler.getMetaData();

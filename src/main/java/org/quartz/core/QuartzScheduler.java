@@ -492,6 +492,7 @@ public class QuartzScheduler {
    * <p>If the given Trigger does not reference any <code>Job</code>, then it will be set to
    * reference the Job passed with it into this method.
    *
+   * @return the first time at which the trigger will fire
    * @throws SchedulerException if the Job or Trigger cannot be added to the Scheduler, or there is
    *     an internal Scheduler error.
    */
@@ -549,6 +550,7 @@ public class QuartzScheduler {
    * Schedule the given <code>{@link org.quartz.Trigger}</code> with the <code>Job</code> identified
    * by the <code>Trigger</code>'s settings.
    *
+   * @return the first time at which the trigger will fire
    * @throws SchedulerException if the indicated Job does not exist, or the Trigger cannot be added
    *     to the Scheduler, or there is an internal Scheduler error.
    */

@@ -67,12 +67,13 @@ public interface CalendarIntervalTrigger extends Trigger {
   IntervalUnit getRepeatIntervalUnit();
 
   /**
-   * Get the time interval that will be added to the <code>DateIntervalTrigger</code>'s fire time
-   * (in the set repeat interval unit) in order to calculate the time of the next trigger repeat.
+   * Get the time interval that will be added to the <code>CalendarIntervalTrigger</code>'s fire
+   * time (in the set repeat interval unit) in order to calculate the time of the next trigger
+   * repeat.
    */
   int getRepeatInterval();
 
-  /** Get the number of times the <code>DateIntervalTrigger</code> has already fired. */
+  /** Get the number of times the <code>CalendarIntervalTrigger</code> has already fired. */
   int getTimesTriggered();
 
   /**

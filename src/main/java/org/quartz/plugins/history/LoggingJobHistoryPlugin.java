@@ -30,34 +30,78 @@ public class LoggingJobHistoryPlugin implements SchedulerPlugin, JobListener {
   private String jobWasVetoedMessage =
       "Job {1}.{0} was vetoed. It was to be fired (by trigger {4}.{3}) at: {2}";
 
+  /**
+   * Returns the template logged after a job completes without an exception.
+   *
+   * @return the {@link MessageFormat} pattern; slot {8} is the job result
+   */
   public String getJobSuccessMessage() {
     return jobSuccessMessage;
   }
 
+  /**
+   * Sets the template logged after a job completes without an exception.
+   *
+   * @param jobSuccessMessage a {@link MessageFormat} pattern using the slots documented on this
+   *     class
+   */
   public void setJobSuccessMessage(String jobSuccessMessage) {
     this.jobSuccessMessage = jobSuccessMessage;
   }
 
+  /**
+   * Returns the template logged when a job throws {@link JobExecutionException}.
+   *
+   * @return the {@link MessageFormat} pattern; slot {8} is the exception message
+   */
   public String getJobFailedMessage() {
     return jobFailedMessage;
   }
 
+  /**
+   * Sets the template logged when a job throws {@link JobExecutionException}.
+   *
+   * @param jobFailedMessage a {@link MessageFormat} pattern using the slots documented on this
+   *     class
+   */
   public void setJobFailedMessage(String jobFailedMessage) {
     this.jobFailedMessage = jobFailedMessage;
   }
 
+  /**
+   * Returns the template logged when a job is about to run.
+   *
+   * @return the {@link MessageFormat} pattern
+   */
   public String getJobToBeFiredMessage() {
     return jobToBeFiredMessage;
   }
 
+  /**
+   * Sets the template logged when a job is about to run.
+   *
+   * @param jobToBeFiredMessage a {@link MessageFormat} pattern using the slots documented on this
+   *     class
+   */
   public void setJobToBeFiredMessage(String jobToBeFiredMessage) {
     this.jobToBeFiredMessage = jobToBeFiredMessage;
   }
 
+  /**
+   * Returns the template logged when a trigger listener vetoes a job.
+   *
+   * @return the {@link MessageFormat} pattern
+   */
   public String getJobWasVetoedMessage() {
     return jobWasVetoedMessage;
   }
 
+  /**
+   * Sets the template logged when a trigger listener vetoes a job.
+   *
+   * @param jobWasVetoedMessage a {@link MessageFormat} pattern using the slots documented on this
+   *     class
+   */
   public void setJobWasVetoedMessage(String jobWasVetoedMessage) {
     this.jobWasVetoedMessage = jobWasVetoedMessage;
   }

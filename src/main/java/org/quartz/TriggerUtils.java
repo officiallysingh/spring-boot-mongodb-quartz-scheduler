@@ -53,7 +53,7 @@ public class TriggerUtils {
    */
 
   /**
-   * Returns a list of Dates that are the next fire times of a <code>Trigger</code>. The input
+   * Returns the next fire times of a <code>Trigger</code> as {@link Instant} values. The input
    * trigger will be cloned before any work is done, so you need not worry about its state being
    * altered by this method.
    *
@@ -129,8 +129,8 @@ public class TriggerUtils {
   }
 
   /**
-   * Returns a list of Dates that are the next fire times of a <code>Trigger</code> that fall within
-   * the given date range. The input trigger will be cloned before any work is done, so you need not
+   * Returns the fire times of a <code>Trigger</code>, as {@link Instant} values, that fall within
+   * the given range. The input trigger will be cloned before any work is done, so you need not
    * worry about its state being altered by this method.
    *
    * <p>NOTE: if this is a trigger that has previously fired within the given date range, then
@@ -138,8 +138,8 @@ public class TriggerUtils {
    *
    * @param trigger The trigger upon which to do the work
    * @param cal The calendar to apply to the trigger's schedule
-   * @param from The starting date at which to find fire times
-   * @param to The ending date at which to stop finding fire times
+   * @param from the first instant at which to find fire times, inclusive
+   * @param to the last instant at which to find fire times, inclusive
    * @return List of java.time.Instant objects
    */
   public static List<Instant> computeFireTimesBetween(

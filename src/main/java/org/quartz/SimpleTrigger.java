@@ -113,7 +113,11 @@ public interface SimpleTrigger extends Trigger {
    */
   int getRepeatCount();
 
-  /** Get the time interval at which the <code>SimpleTrigger</code> should repeat. */
+  /**
+   * Returns the interval added to each fire time to compute the next one.
+   *
+   * @return the repeat interval, zero or positive
+   */
   Duration getRepeatInterval();
 
   /** Get the number of times the <code>SimpleTrigger</code> has already fired. */

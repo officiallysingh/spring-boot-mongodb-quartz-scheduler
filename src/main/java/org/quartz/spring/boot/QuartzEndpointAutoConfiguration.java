@@ -15,8 +15,12 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 
 /**
- * Auto-configuration for the {@link QuartzEndpoint}. Expose it with {@code
- * management.endpoints.web.exposure.include=quartz}.
+ * Auto-configuration for the {@link QuartzEndpoint}.
+ *
+ * <p>The endpoint bean is created when a {@link Scheduler} exists and the endpoint is available.
+ * The web extension is created only when the endpoint is exposed over HTTP. Expose it with {@code
+ * management.endpoints.web.exposure.include=quartz}. A {@link QuartzEndpoint} or {@link
+ * QuartzEndpointWebExtension} bean declared by the application is left in place.
  */
 @AutoConfiguration(after = QuartzAutoConfiguration.class)
 @ConditionalOnClass({Scheduler.class, QuartzEndpoint.class, ConditionalOnAvailableEndpoint.class})
@@ -24,6 +28,13 @@ import org.springframework.context.annotation.Bean;
 @EnableConfigurationProperties(QuartzEndpointProperties.class)
 public class QuartzEndpointAutoConfiguration {
 
+  /**
+   * Exposes jobs and triggers from the auto-configured or user-declared {@link Scheduler}.
+   *
+   * @param scheduler the scheduler to read
+   * @param sanitizingFunctions additional rules applied to job and trigger data values
+   * @return the {@code quartz} endpoint
+   */
   @Bean
   @ConditionalOnBean(Scheduler.class)
   @ConditionalOnMissingBean
@@ -32,6 +43,14 @@ public class QuartzEndpointAutoConfiguration {
     return new QuartzEndpoint(scheduler, sanitizingFunctions.orderedStream().toList());
   }
 
+  /**
+   * Serves {@code /actuator/quartz/jobs} and {@code /actuator/quartz/triggers}, including group and
+   * item selectors and the write operation that fires a job.
+   *
+   * @param endpoint the endpoint that reads the scheduler
+   * @param properties {@code show-values} and {@code roles} for unsanitized data maps
+   * @return the web extension
+   */
   @Bean
   @ConditionalOnBean(QuartzEndpoint.class)
   @ConditionalOnMissingBean

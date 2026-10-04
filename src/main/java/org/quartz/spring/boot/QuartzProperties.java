@@ -11,7 +11,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.boot.convert.DurationUnit;
 
-/** {@code quartz.scheduler.*} settings for this fork's Spring Boot auto-configuration. */
+/**
+ * {@code quartz.scheduler.*} settings for this library's Spring Boot auto-configuration.
+ *
+ * <p>Duration properties accept Spring Boot duration text ({@code 15s}, {@code 500ms}). A unitless
+ * number is milliseconds. Typed duration fields overwrite the same Quartz keys if those keys are
+ * also present in {@link #properties}.
+ */
 @Getter
 @Setter
 @ConfigurationProperties(prefix = "quartz.scheduler")
@@ -84,6 +90,12 @@ public class QuartzProperties {
   @Setter(AccessLevel.NONE)
   private String collectionPrefix = "qrtz_";
 
+  /**
+   * Sets the prefix of the Quartz collections. A {@code null} or blank value is stored as {@code
+   * qrtz_}.
+   *
+   * @param collectionPrefix prefix such as {@code qrtz_}, or blank to restore the default
+   */
   public void setCollectionPrefix(String collectionPrefix) {
     this.collectionPrefix =
         (collectionPrefix == null || collectionPrefix.isBlank()) ? "qrtz_" : collectionPrefix;
@@ -97,13 +109,25 @@ public class QuartzProperties {
   @NestedConfigurationProperty
   private final ThreadPool threadPool = new ThreadPool();
 
+  /**
+   * {@code quartz.scheduler.thread-pool.*} settings. {@code threadCount} is the size of {@link
+   * org.quartz.simpl.SimpleThreadPool}, or the concurrency cap of {@link
+   * org.quartz.simpl.VirtualThreadPool} when {@link #virtual} is {@code true}.
+   */
   @Getter
   @Setter
   public static class ThreadPool {
 
-    /** Worker threads / max concurrent virtual jobs. Quartz default is 10. */
+    /**
+     * Worker threads, or the maximum number of concurrent virtual-thread jobs. The default is 10.
+     */
     private int threadCount = 10;
 
+    /**
+     * Platform-thread priority, from {@link Thread#MIN_PRIORITY} to {@link Thread#MAX_PRIORITY}.
+     * Ignored when {@link #virtual} is {@code true}, because virtual threads have no custom
+     * priority. The default is {@link Thread#NORM_PRIORITY}.
+     */
     private int threadPriority = Thread.NORM_PRIORITY;
 
     /**

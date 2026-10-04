@@ -31,26 +31,60 @@ public class LoggingTriggerHistoryPlugin implements SchedulerPlugin, TriggerList
   private String triggerCompleteMessage =
       "Trigger {1}.{0} completed firing job {6}.{5} at {4} with resulting trigger instruction code: {9}";
 
+  /**
+   * Returns the template logged when a trigger finishes firing.
+   *
+   * @return the {@link MessageFormat} pattern; slot {8} is the instruction enum and slot {9} is a
+   *     readable instruction
+   */
   public String getTriggerCompleteMessage() {
     return triggerCompleteMessage;
   }
 
+  /**
+   * Sets the template logged when a trigger finishes firing.
+   *
+   * @param triggerCompleteMessage a {@link MessageFormat} pattern using the slots documented on
+   *     this class
+   */
   public void setTriggerCompleteMessage(String triggerCompleteMessage) {
     this.triggerCompleteMessage = triggerCompleteMessage;
   }
 
+  /**
+   * Returns the template logged when a trigger fires.
+   *
+   * @return the {@link MessageFormat} pattern
+   */
   public String getTriggerFiredMessage() {
     return triggerFiredMessage;
   }
 
+  /**
+   * Sets the template logged when a trigger fires.
+   *
+   * @param triggerFiredMessage a {@link MessageFormat} pattern using the slots documented on this
+   *     class
+   */
   public void setTriggerFiredMessage(String triggerFiredMessage) {
     this.triggerFiredMessage = triggerFiredMessage;
   }
 
+  /**
+   * Returns the template logged when a trigger misfires.
+   *
+   * @return the {@link MessageFormat} pattern
+   */
   public String getTriggerMisfiredMessage() {
     return triggerMisfiredMessage;
   }
 
+  /**
+   * Sets the template logged when a trigger misfires.
+   *
+   * @param triggerMisfiredMessage a {@link MessageFormat} pattern using the slots documented on
+   *     this class
+   */
   public void setTriggerMisfiredMessage(String triggerMisfiredMessage) {
     this.triggerMisfiredMessage = triggerMisfiredMessage;
   }

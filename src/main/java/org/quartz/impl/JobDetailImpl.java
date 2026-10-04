@@ -196,9 +196,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
     return group + "." + name;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.JobDetailI#getKey()
-   */
+  /** {@inheritDoc} */
   public JobKey getKey() {
     if (key == null) {
       if (getName() == null) return null;
@@ -216,9 +214,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
     this.key = key;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.JobDetailI#getDescription()
-   */
+  /** {@inheritDoc} */
   public String getDescription() {
     return description;
   }
@@ -231,9 +227,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
     this.description = description;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.JobDetailI#getJobClass()
-   */
+  /** {@inheritDoc} */
   public Class<? extends Job> getJobClass() {
     return jobClass;
   }
@@ -255,9 +249,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
     this.jobClass = jobClass;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.JobDetailI#getJobDataMap()
-   */
+  /** {@inheritDoc} */
   public JobDataMap getJobDataMap() {
     if (jobDataMap == null) {
       jobDataMap = new JobDataMap();
@@ -292,9 +284,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
     this.shouldRecover = shouldRecover;
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.JobDetailI#isDurable()
-   */
+  /** {@inheritDoc} */
   public boolean isDurable() {
     return durability;
   }
@@ -317,9 +307,7 @@ public class JobDetailImpl implements Cloneable, java.io.Serializable, JobDetail
     return ClassUtils.isAnnotationPresent(jobClass, DisallowConcurrentExecution.class);
   }
 
-  /* (non-Javadoc)
-   * @see org.quartz.JobDetailI#requestsRecovery()
-   */
+  /** {@inheritDoc} */
   public boolean requestsRecovery() {
     return shouldRecover;
   }

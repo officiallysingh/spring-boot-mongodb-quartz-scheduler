@@ -13,8 +13,12 @@ import org.springframework.boot.health.contributor.HealthContributor;
 import org.springframework.context.annotation.Bean;
 
 /**
- * Auto-configuration for {@link QuartzHealthIndicator}, contributed to the {@code health} endpoint
- * as {@code quartz}. Disable with {@code management.health.quartz.enabled=false}.
+ * Auto-configuration for {@link QuartzHealthIndicator}.
+ *
+ * <p>Contributes one indicator per {@link Scheduler} bean to the {@code health} endpoint under the
+ * name {@code quartz}. Disable it with {@code management.health.quartz.enabled=false}. An
+ * application bean named {@code quartzHealthIndicator} or {@code quartzHealthContributor} replaces
+ * this contribution.
  */
 @AutoConfiguration(after = QuartzAutoConfiguration.class)
 @ConditionalOnClass({
@@ -31,6 +35,12 @@ public class QuartzHealthContributorAutoConfiguration
     super(QuartzHealthIndicator::new);
   }
 
+  /**
+   * Builds the {@code quartz} health contributor from every {@link Scheduler} in the context.
+   *
+   * @param beanFactory factory used to find scheduler beans
+   * @return a single indicator, or a composite when more than one scheduler exists
+   */
   @Bean
   @ConditionalOnMissingBean(name = {"quartzHealthIndicator", "quartzHealthContributor"})
   HealthContributor quartzHealthContributor(ConfigurableListableBeanFactory beanFactory) {

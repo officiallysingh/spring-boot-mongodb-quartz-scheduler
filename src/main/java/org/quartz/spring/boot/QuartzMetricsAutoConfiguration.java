@@ -12,9 +12,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 
 /**
- * Auto-configuration for Quartz Micrometer metrics. The {@link MeterBinder} beans are bound to
- * every {@link MeterRegistry} by Spring Boot. Individual meters can be switched off with {@code
- * management.metrics.enable.quartz*}.
+ * Auto-configuration for Quartz Micrometer metrics.
+ *
+ * <p>Registers {@link QuartzMetrics} and {@link QuartzJobMetrics} when a {@link Scheduler} and a
+ * {@link MeterRegistry} are present. Spring Boot binds those {@link MeterBinder} beans to every
+ * registry. Turn individual meters off with {@code management.metrics.enable.quartz*}. An
+ * application-declared binder of the same type replaces the auto-configured one.
  */
 @AutoConfiguration(
     after = QuartzAutoConfiguration.class,
@@ -26,12 +29,24 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnBean({Scheduler.class, MeterRegistry.class})
 public class QuartzMetricsAutoConfiguration {
 
+  /**
+   * Binds scheduler-wide gauges and the jobs-executed counter.
+   *
+   * @param scheduler the scheduler whose in-memory state is scraped
+   * @return the scheduler meter binder
+   */
   @Bean
   @ConditionalOnMissingBean
   QuartzMetrics quartzMetrics(Scheduler scheduler) {
     return new QuartzMetrics(scheduler);
   }
 
+  /**
+   * Binds per-job execution, active, veto, and misfire meters through scheduler listeners.
+   *
+   * @param scheduler the scheduler the listeners are registered on
+   * @return the per-job meter binder
+   */
   @Bean
   @ConditionalOnMissingBean
   QuartzJobMetrics quartzJobMetrics(Scheduler scheduler) {

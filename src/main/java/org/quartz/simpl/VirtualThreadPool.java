@@ -69,10 +69,20 @@ public class VirtualThreadPool implements ThreadPool {
 
   private String schedulerInstanceName;
 
+  /**
+   * Returns the logger used by this pool.
+   *
+   * @return the SLF4J logger for {@code VirtualThreadPool}
+   */
   public Logger getLog() {
     return log;
   }
 
+  /**
+   * Returns the concurrency cap. This is not a count of platform threads.
+   *
+   * @return the value from {@link #setThreadCount(int)}, or {@code -1} before it is set
+   */
   @Override
   public int getPoolSize() {
     return getThreadCount();
@@ -87,6 +97,11 @@ public class VirtualThreadPool implements ThreadPool {
     this.maxConcurrency = maxConcurrency;
   }
 
+  /**
+   * Returns the maximum number of jobs that may run at once.
+   *
+   * @return the semaphore size, or {@code -1} before {@link #setThreadCount(int)}
+   */
   public int getThreadCount() {
     return maxConcurrency;
   }
@@ -109,14 +124,30 @@ public class VirtualThreadPool implements ThreadPool {
    */
   public void setThreadsInheritGroupOfInitializingThread(boolean inheritGroup) {}
 
+  /**
+   * Accepts the scheduler instance id. Virtual threads are not named from it.
+   *
+   * @param schedInstId the scheduler instance id; ignored
+   */
   @Override
   public void setInstanceId(String schedInstId) {}
 
+  /**
+   * Stores the scheduler name used as the default virtual-thread name prefix.
+   *
+   * @param schedName the scheduler instance name
+   */
   @Override
   public void setInstanceName(String schedName) {
     this.schedulerInstanceName = schedName;
   }
 
+  /**
+   * Creates the concurrency semaphore. A second call does nothing. {@link #setThreadCount(int)}
+   * must have been given a value greater than zero.
+   *
+   * @throws SchedulerConfigException if the concurrency cap is not positive
+   */
   @Override
   public void initialize() throws SchedulerConfigException {
     if (permits != null) {
@@ -133,6 +164,12 @@ public class VirtualThreadPool implements ThreadPool {
             schedulerInstanceName);
   }
 
+  /**
+   * Stops accepting new work. When {@code waitForJobsToComplete} is {@code true}, this method
+   * blocks until every virtual thread started by the pool has finished.
+   *
+   * @param waitForJobsToComplete whether to wait for in-flight jobs
+   */
   @Override
   public void shutdown(boolean waitForJobsToComplete) {
     getLog().debug("Shutting down VirtualThreadPool...");
@@ -163,6 +200,14 @@ public class VirtualThreadPool implements ThreadPool {
     getLog().debug("Shutdown of VirtualThreadPool complete.");
   }
 
+  /**
+   * Runs {@code runnable} on a new virtual thread once a permit is available. During shutdown, a
+   * runnable is still started and its permit is not acquired, matching {@link SimpleThreadPool}.
+   *
+   * @param runnable the job shell to run
+   * @return {@code false} when {@code runnable} is {@code null}; otherwise {@code true} once the
+   *     virtual thread has been started or the pool has shut down and still accepted the hand-off
+   */
   @Override
   public boolean runInThread(Runnable runnable) {
     if (runnable == null) {
@@ -196,6 +241,12 @@ public class VirtualThreadPool implements ThreadPool {
     return true;
   }
 
+  /**
+   * Blocks until at least one concurrency permit is free, or the pool is shut down.
+   *
+   * @return the number of permits currently available; the scheduler uses this as the maximum
+   *     number of triggers to acquire
+   */
   @Override
   public int blockForAvailableThreads() {
     synchronized (lock) {
