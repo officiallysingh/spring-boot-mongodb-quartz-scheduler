@@ -116,7 +116,7 @@ Add this jar. That registers `QuartzAutoConfiguration`, the Actuator auto-config
 
 ```xml
 <dependency>
-    <groupId>io.github.officiallysingh</groupId>
+    <groupId>com.neolama</groupId>
     <artifactId>spring-boot-mongodb-quartz-scheduler</artifactId>
     <version>0.0.1-SNAPSHOT</version>
 </dependency>
@@ -125,7 +125,7 @@ Add this jar. That registers `QuartzAutoConfiguration`, the Actuator auto-config
 **Gradle**
 
 ```groovy
-implementation 'io.github.officiallysingh:spring-boot-mongodb-quartz-scheduler:0.0.1-SNAPSHOT'
+implementation 'com.neolama:spring-boot-mongodb-quartz-scheduler:0.0.1-SNAPSHOT'
 ```
 
 The application also needs a MongoDB driver on the classpath. `spring-boot-starter-data-mongodb` is the usual choice, because this library will reuse that client.
